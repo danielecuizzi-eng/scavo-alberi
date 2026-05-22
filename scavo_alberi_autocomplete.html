@@ -879,8 +879,10 @@ let lavFotoOffset = {};    // {idx: n} foto lavorazione già salvate su Drive
 
 function renameFotos() {
   const idAlbero = v('f-id').value.trim() || 'ALB';
+  const cantiere = (v('f-cant').value.trim() || '').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_');
+  const suffix = cantiere ? '_' + cantiere : '';
   currentFotos = currentFotos.map((f, i) => ({
-    name: idAlbero + '_a_' + String(fotoAnteOffset + i + 1).padStart(2, '0'),
+    name: idAlbero + '_a_' + String(fotoAnteOffset + i + 1).padStart(2, '0') + suffix,
     data: f.data
   }));
 }
