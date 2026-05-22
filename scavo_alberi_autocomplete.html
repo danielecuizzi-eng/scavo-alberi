@@ -867,7 +867,8 @@ function getForm() {
     foto_nomi: currentFotos.map(f => f.name).join(', '),
     foto_base64: currentFotos.map(f => f.data).join('||'),
     lav_foto_nomi: lavorazioni.filter(l => l).map(l => l.fotos.map(f => f.name).join(', ')).join(' || '),
-    lav_foto_base64: lavorazioni.filter(l => l).map(l => l.fotos.map(f => f.data).join('||')).join('||||')
+    lav_foto_base64: lavorazioni.filter(l => l).map(l => l.fotos.map(f => f.data).join('||')).join('||||'),
+    lav_foto_counts: JSON.stringify(Object.fromEntries(lavorazioni.map((l, i) => [i, (lavFotoOffset[i] || 0) + (l ? l.fotos.length : 0)]).filter(([i, v]) => v > 0)))
   };
 }
 
