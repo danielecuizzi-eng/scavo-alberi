@@ -1666,19 +1666,20 @@ v('btn-save').addEventListener('click', async function() {
         }
         // Svuota foto dalla memoria dopo l'upload
         var nFotoTotale = fotoAnteOffset + currentFotos.length;
+        // Calcola i contatori lavorazioni PRIMA di svuotare le foto
+        var lavCounts = {};
+        lavorazioni.forEach(function(l, i) {
+          var total = (lavFotoOffset[i] || 0) + (l && l.fotos ? l.fotos.length : 0);
+          if (total > 0) lavCounts[i] = total;
+        });
         currentFotos = [];
         v('f-foto-input').value = '';
         lavorazioni.forEach(function(l) { if (l) l.fotos = []; });
         renderFotoPreview();
-        // Aggiorna d con foto vuote ma contatore corretto
+        // Aggiorna d con foto vuote ma contatori corretti
         d.foto_base64 = '';
         d.foto_nomi = '';
         d.lav_foto_base64 = '';
-        // Salva i contatori lavorazioni prima di azzerare i nomi
-        var lavCounts = {};
-        lavorazioni.forEach(function(l, i) {
-          if (l && l.fotos) lavCounts[i] = (lavFotoOffset[i] || 0) + l.fotos.length;
-        });
         d.lav_foto_nomi = '';
         d.lav_foto_counts = JSON.stringify(lavCounts);
         d.n_foto = nFotoTotale;
