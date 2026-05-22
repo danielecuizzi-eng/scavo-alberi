@@ -985,10 +985,12 @@ function lavNumber(idx) {
 
 function renameLavFotos(idx) {
   const idAlbero = v('f-id').value.trim() || 'ALB';
+  const cantiere = (v('f-cant').value.trim() || '').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_');
+  const suffix = cantiere ? '_' + cantiere : '';
   const num = lavNumber(idx);
   const offset = lavFotoOffset[idx] || 0;
   lavorazioni[idx].fotos = lavorazioni[idx].fotos.map((f, i) => ({
-    name: idAlbero + '_' + num + '_' + String(offset + i + 1).padStart(2, '0'),
+    name: idAlbero + '_' + num + '_' + String(offset + i + 1).padStart(2, '0') + suffix,
     data: f.data
   }));
 }
