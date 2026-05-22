@@ -1,0 +1,2494 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Scavi presso Alberi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --green-deep: #1E3D0A;
+  --green: #2D5A10;
+  --green-mid: #4A8C1C;
+  --green-light: #D6EBBA;
+  --green-pale: #F0F7E6;
+  --amber: #7A3E00;
+  --amber-mid: #C46A00;
+  --amber-light: #FEF3E2;
+  --red: #8C1C1C;
+  --red-light: #FDEAEA;
+  --text: #1A2410;
+  --text-mid: #3D5028;
+  --text-muted: #6B7D5A;
+  --border: #C8D9B0;
+  --border-light: #E2EDD0;
+  --bg: #F5F9EF;
+  --bg-card: #FAFDF6;
+  --bg-section: #F0F5E8;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --r: 14px;
+  --r-sm: 10px;
+  --shadow: 0 1px 4px rgba(30,61,10,0.08);
+  --shadow-md: 0 4px 16px rgba(30,61,10,0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overscroll-behavior: none;
+  font-size: 16px;
+}
+
+/* ── HEADER ─────────────────────────────── */
+.hdr {
+  background: var(--green-deep);
+  padding: 14px 18px 0;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: var(--shadow-md);
+}
+.hdr-top { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; }
+.hdr-icon { width: 40px; height: 40px; background: rgba(255,255,255,0.12); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.hdr-icon i { font-size: 22px; color: #C8E89A; }
+.hdr-title { font-size: 17px; font-weight: 600; color: #F0F7E6; letter-spacing: -0.01em; }
+.hdr-sub { font-size: 12.5px; color: #8DB866; margin-top: 2px; }
+
+/* ── SYNC BAR ────────────────────────────── */
+.sync-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 18px;
+  background: rgba(0,0,0,0.22);
+  font-size: 12px; color: #8DB866;
+}
+.sync-indicator { display: flex; align-items: center; gap: 7px; }
+.sdot { width: 8px; height: 8px; border-radius: 50%; background: #6DC84A; box-shadow: 0 0 6px #6DC84A; transition: all .3s; }
+.sdot.loading { background: #EFA827; box-shadow: 0 0 6px #EFA827; animation: pulse 1s infinite; }
+.sdot.err { background: #E24B4A; box-shadow: 0 0 6px #E24B4A; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ── TABS ─────────────────────────────────── */
+.tabs { display: flex; background: var(--green-deep); border-top: 1px solid rgba(255,255,255,0.08); }
+.tab {
+  flex: 1; padding: 12px 6px;
+  text-align: center; font-size: 13px; font-weight: 500;
+  color: #6B8F52; cursor: pointer; transition: all .2s;
+  border-bottom: 2.5px solid transparent;
+}
+.tab.on { color: #C8E89A; border-bottom-color: #6DC84A; }
+.pane { display: none; }
+.pane.on { display: block; }
+
+/* ── BODY ─────────────────────────────────── */
+.fbody { padding: 14px 14px 40px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── STATS ──────────────────────────────────── */
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat {
+  background: var(--bg-card); border: 1px solid var(--border-light);
+  border-radius: var(--r-sm); padding: 12px 14px;
+  box-shadow: var(--shadow);
+}
+.stat-lbl { font-size: 11px; color: var(--text-muted); font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px; }
+.stat-val { font-size: 26px; font-weight: 600; color: var(--green); font-variant-numeric: tabular-nums; }
+
+/* ── SECTION CARD ────────────────────────── */
+.scard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.shed {
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 16px;
+  background: var(--bg-section);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 12px; font-weight: 700; color: var(--green);
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+.shed i { font-size: 18px; color: var(--green-mid); }
+.sbody { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── FIELDS ──────────────────────────────── */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label {
+  font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.field input, .field select, .field textarea {
+  width: 100%; font-family: var(--font); font-size: 16px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  background: white; color: var(--text);
+  -webkit-appearance: none; appearance: none;
+  transition: border-color .15s, box-shadow .15s;
+  min-height: 48px; /* touch target */
+}
+.field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7D5A' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 40px;
+}
+.field input.field-error, .field select.field-error, .field textarea.field-error {
+  background: #FFF0F0; border-color: #C84A4A;
+  box-shadow: 0 0 0 3px rgba(200,74,74,.15);
+}
+.field input::placeholder, .field textarea::placeholder { color: #aab8a0; opacity: 1; }
+.field input[type="date"]:not([value])::-webkit-datetime-edit { color: #aab8a0; }
+.field input[type="date"][value=""]::-webkit-datetime-edit { color: #aab8a0; }
+.field input[type="date"]::-webkit-datetime-edit-fields-wrapper { color: inherit; }
+.field input[type="date"].has-value { color: #000000 !important; }
+.field input[type="date"].has-value::-webkit-datetime-edit { color: #000000 !important; }
+.field input[type="date"].has-value::-webkit-datetime-edit-fields-wrapper { color: #000000 !important; }
+.field select { color: #1a2e0a; }
+.field select option[value=""] { color: #aab8a0; }
+.field input:placeholder-shown, .field textarea:placeholder-shown { color: #aab8a0; }
+
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none; border-color: var(--green-mid);
+  box-shadow: 0 0 0 3px rgba(74,140,28,.15);
+}
+.field textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+.field .calc {
+  background: var(--green-pale); border-color: var(--green-light);
+  color: var(--green); font-family: var(--mono); font-weight: 500;
+  cursor: default;
+}
+.field .calc-red {
+  background: #FFFBCC; border-color: #E6C800;
+  color: #7A6000; font-family: var(--mono); font-weight: 500;
+  cursor: default;
+}
+.frow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.frow3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+/* ── CHIPS ───────────────────────────── */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  padding: 9px 16px; border-radius: 24px;
+  border: 1.5px solid var(--border);
+  font-size: 14px; font-weight: 400; cursor: pointer;
+  background: white; color: var(--text-mid);
+  transition: all .15s; user-select: none;
+  min-height: 44px; display: flex; align-items: center;
+}
+.chip:active { transform: scale(.96); }
+.chip.on { background: #3B7A14; border-color: #2D5A10; color: #FFFFFF; font-weight: 600; }
+.chip.warn.on { background: #C46A00; border-color: #7A3E00; color: #FFFFFF; font-weight: 600; }
+.chip.danger.on { background: #C84A4A; border-color: #8C1C1C; color: #FFFFFF; font-weight: 600; }
+
+/* ── ALERT ──────────────────────────────── */
+.alert {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 12px 14px; border-radius: var(--r-sm);
+  font-size: 14px; line-height: 1.45;
+}
+.alert.warn { background: var(--amber-light); border: 1px solid #E8A840; color: var(--amber); }
+.alert i { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+/* ── BANNER ──────────────────────────────── */
+.banner {
+  display: none; align-items: center; gap: 10px;
+  padding: 13px 16px; border-radius: var(--r-sm);
+  font-size: 15px; font-weight: 500;
+
+}
+.banner.ok { background: var(--green-pale); border: 1px solid var(--green-mid); color: var(--green-deep); }
+.banner.err { background: var(--red-light); border: 1px solid #C84A4A; color: var(--red); }
+.banner i { font-size: 20px; }
+
+/* ── BUTTONS ──────────────────────────────── */
+.btn {
+  width: 100%; border: none; border-radius: var(--r-sm);
+  padding: 16px 18px; font-family: var(--font); font-size: 16px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: all .15s; letter-spacing: -0.01em;
+  min-height: 54px;
+}
+.btn:active { transform: scale(.98); }
+.btn i { font-size: 20px; }
+.btn-primary { background: var(--green); color: #F0F7E6; box-shadow: 0 2px 8px rgba(30,61,10,0.25); }
+.btn-primary:hover { background: var(--green-deep); }
+.btn-sec { background: white; color: var(--text-mid); border: 1.5px solid var(--border); }
+.btn-sec:hover { background: var(--bg-section); }
+.btn-danger { background: white; color: var(--red); border: 1.5px solid #DDA0A0; }
+
+/* ── RECORD LIST ──────────────────────────── */
+.rec-list { display: flex; flex-direction: column; gap: 10px; }
+.rec-item {
+  background: white; border: 1px solid var(--border-light);
+  border-radius: var(--r-sm); padding: 13px 15px;
+  box-shadow: var(--shadow); cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rec-item:hover {
+  border-color: var(--green); box-shadow: 0 2px 12px rgba(74,140,28,0.15);
+}
+.rec-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 5px; gap: 8px; }
+.rec-id { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--green); }
+.rec-sp { font-size: 14px; font-style: italic; color: var(--text-muted); }
+.rec-meta { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
+.risk-pill {
+  display: inline-flex; align-items: center; padding: 3px 10px;
+  border-radius: 20px; font-size: 12px; font-weight: 600;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* ── CHECKBOX GROUPS ─────────────────────── */
+.chk-group { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.chk-opt {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-sm);
+  font-size: 15px; color: var(--text-mid);
+  cursor: pointer; background: white;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .1s, border-color .1s;
+  min-height: 48px;
+}
+.chk-opt:has(input:checked) { background: var(--green-light); border-color: var(--green-mid); color: var(--green-deep); font-weight: 500; }
+.chk-opt input[type=checkbox] { accent-color: var(--green); width: 20px; height: 20px; flex-shrink: 0; }
+
+/* ── SEPARATOR ──────────────────────────── */
+.sep { height: 1px; background: var(--border-light); margin: 2px 0; }
+
+/* ── EMPTY STATE ─────────────────────────── */
+.empty { text-align: center; padding: 40px 16px; color: var(--text-muted); font-size: 15px; }
+.empty i { font-size: 40px; display: block; margin-bottom: 12px; opacity: .4; }
+
+/* ── LAVORAZIONI ─────────────────────────── */
+.lav-card {
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.lav-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-section);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px; font-weight: 600; color: var(--green);
+}
+.lav-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.lav-del {
+  background: none; border: none; color: #C84A4A;
+  font-size: 18px; cursor: pointer; padding: 2px 4px;
+  display: flex; align-items: center;
+}
+
+/* ── FOTO ────────────────────────────────── */
+.foto-thumb {
+  position: relative; width: calc(50% - 4px);
+  border-radius: var(--r-sm); overflow: hidden;
+  border: 1.5px solid var(--border-light);
+  box-shadow: var(--shadow);
+  aspect-ratio: 4/3;
+}
+.foto-thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.foto-thumb .foto-del {
+  position: absolute; top: 5px; right: 5px;
+  background: rgba(0,0,0,0.55); border: none; border-radius: 50%;
+  width: 28px; height: 28px; color: white; font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.foto-count {
+  font-size: 12px; color: var(--text-muted); margin-top: 4px;
+}
+
+/* ── DELETE BTN ──────────────────────────── */
+.del-btn {
+  background: none; border: none; cursor: pointer;
+  color: #C84A4A; font-size: 16px; padding: 2px 4px;
+  opacity: .5; transition: opacity .15s;
+}
+.del-btn:hover { opacity: 1; }
+
+/* ── OPERATORE AUTOCOMPLETE ──────────────── */
+.op-wrap { position: relative; }
+.op-dropdown {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+  background: white; border: 1.5px solid var(--green-mid);
+  border-radius: var(--r-sm); overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.op-dropdown.show { display: block; }
+.op-item {
+  padding: 11px 14px; font-size: 15px; cursor: pointer;
+  color: var(--text); border-bottom: 1px solid var(--border-light);
+  transition: background .1s;
+}
+.op-item:last-child { border-bottom: none; }
+.op-item:hover, .op-item.focused { background: var(--green-pale); color: var(--green-deep); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="hdr-icon"><i class="ti ti-tree"></i></div>
+    <div>
+      <div class="hdr-title">Scavi presso Alberi</div>
+      <div class="hdr-sub">Modulo di rilevamento cantiere</div>
+      <div id="hdr-albero-id" style="display:block;margin-top:4px;font-size:22px;font-weight:700;color:#C8E89A;letter-spacing:0.02em;line-height:1.2;"><span id="hdr-albero-id-val">Scheda vuota</span></div>
+    </div>
+  </div>
+  <div class="sync-bar">
+    <div class="sync-indicator">
+      <div class="sdot" id="sdot"></div>
+      <span id="slbl">Inizializzazione...</span>
+    </div>
+    <span id="scount" style="font-weight:500;color:#C8E89A"></span>
+  </div>
+  <div class="tabs">
+    <div class="tab on" data-tab="form"><i class="ti ti-edit" style="font-size:14px;margin-right:4px"></i>Inserimento</div>
+    <div class="tab" data-tab="recs"><i class="ti ti-list" style="font-size:14px;margin-right:4px"></i>Schede</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ FORM PANE -->
+<div class="pane on" id="pane-form">
+<div class="fbody">
+
+  <div id="banner" class="banner ok"><i class="ti ti-circle-check"></i><span id="bnr-msg">Salvato</span></div>
+
+  <input type="hidden" id="f-editing-id" value="">
+  <div class="stats">
+    <div class="stat"><div class="stat-lbl">Schede totali: <span id="cnt-tot">—</span></div></div>
+    <div class="stat"><div class="stat-lbl">Operatori attivi: <span id="cnt-op">—</span></div></div>
+  </div>
+  <div id="editing-banner" style="display:none;background:#FFF8E1;border:1px solid #F0C040;color:#7A5A00;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;">&#9998; Stai modificando la scheda <span id="editing-id-label"></span> &mdash; <button onclick="cancelEdit()" style="background:none;border:none;color:#c00;cursor:pointer;font-size:13px;text-decoration:underline;">Annulla modifica</button></div>
+  <button class="btn btn-sec" id="btn-duplicate"><i class="ti ti-copy"></i>Duplica scheda precedente</button>
+
+  <!-- OPERATORE -->
+  <div class="scard">
+    <div class="shed"><i class="ti ti-user-circle"></i>Cantiere</div>
+    <div class="sbody">
+      <div class="field"><label>Cantiere <span style="color:#C84A4A">*</span></label><input type="text" id="f-cant" placeholder="Es. Via Roma – A"></div>
+    </div>
+  </div>
+
+  <!-- DATI ALBERO -->
+  <div class="scard">
+    <div class="shed"><i class="ti ti-tree"></i>Dati albero</div>
+    <div class="sbody">
+      <div class="frow">
+        <div class="field"><label>ID Albero <span style="color:#C84A4A">*</span></label><input type="text" id="f-id" placeholder="Es. ALB-042" autocomplete="off"><div id="f-id-msg" style="display:none;margin-top:6px;padding:9px 12px;border-radius:8px;font-size:13px;line-height:1.45;"></div></div>
+        <div class="field"><label>Specie</label><input type="text" id="f-sp" placeholder="Es. Quercus robur"></div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>Circ. 1,30 m (cm) <span style="color:#C84A4A">*</span></label><input type="number" id="f-circ130" min="0" placeholder="cm"></div>
+        <div class="field"><label>Circ. ABR (cm) <span style="color:#C84A4A">*</span></label><input type="number" id="f-circabr" min="0" placeholder="cm"></div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>Altezza (m) <span style="color:#C84A4A">*</span></label><input type="number" id="f-alt" step="0.5" min="0" max="40" placeholder="m"></div>
+        <div class="field"><label>Età</label>
+          <select id="f-eta">
+            <option value="">— seleziona —</option>
+            <option>0–10 anni</option>
+            <option>11–40 anni</option>
+            <option>41–80 anni</option>
+            <option>&gt; 80 anni</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>Chioma perp. (m)</label><input type="number" id="f-chiomaperf" step="0.5" min="0" max="30" placeholder="m"></div>
+        <div class="field"><label>Chioma par. (m)</label><input type="number" id="f-chiomapara" step="0.5" min="0" max="30" placeholder="m"></div>
+      </div>
+      <div class="field"><label>Fase di sviluppo</label>
+        <select id="f-fase">
+          <option value="">— seleziona —</option>
+          <option>Infanzia</option>
+          <option>Giovinezza</option>
+          <option>Pienezza</option>
+          <option>Maturità</option>
+          <option>Senescenza</option>
+        </select>
+      </div>
+      <div class="field"><label>Stato vegetativo</label>
+        <select id="f-statveg">
+          <option value="">— seleziona —</option>
+          <option>Buono</option>
+          <option>Discreto</option>
+          <option>Mediocre</option>
+          <option>Scarso</option>
+          <option>Deperente</option>
+          <option>Morto</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEDE IMPIANTO -->
+  <div class="scard">
+    <div class="shed"><i class="ti ti-map-pin"></i>Sede impianto</div>
+    <div class="sbody">
+      <div class="field"><label>Sede impianto</label>
+        <select id="f-sede" onchange="document.getElementById('f-sede-altro-wrap').style.display=this.value==='Altro'?'block':'none'">
+          <option value="">— seleziona —</option>
+          <option>Aiuola collettiva</option>
+          <option>Aiuola individuale</option>
+          <option>Area inerbita</option>
+          <option>Corridoio uso promiscuo</option>
+          <option>Bordo strada</option>
+          <option>Altro</option>
+        </select>
+        <div id="f-sede-altro-wrap" style="display:none;margin-top:7px">
+          <input type="text" id="f-sede-altro" placeholder="Specifica sede impianto...">
+        </div>
+      </div>
+      <div class="field"><label>Forma sede</label>
+        <select id="f-forma" onchange="document.getElementById('f-forma-altro-wrap').style.display=this.value==='Altro'?'block':'none'">
+          <option value="">— seleziona —</option>
+          <option>Circolare</option>
+          <option>Quadrata</option>
+          <option>Rettangolare</option>
+          <option>Altro</option>
+        </select>
+        <div id="f-forma-altro-wrap" style="display:none;margin-top:7px">
+          <input type="text" id="f-forma-altro" placeholder="Specifica forma sede...">
+        </div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>Dim. 1 (cm)</label><input type="number" id="f-dim1" min="0" placeholder="cm"></div>
+        <div class="field"><label>Dim. 2 (cm)</label><input type="number" id="f-dim2" min="0" placeholder="cm"></div>
+      </div>
+      <div class="field"><label>Copertura sede impianto</label>
+        <div class="chk-group" id="chk-covsede">
+          <label class="chk-opt"><input type="checkbox" value="Stabilizzato"> Stabilizzato</label>
+          <label class="chk-opt"><input type="checkbox" value="Terreno inerbito"> Terreno inerbito</label>
+          <label class="chk-opt"><input type="checkbox" value="Terreno nudo"> Terreno nudo</label>
+          <label class="chk-opt"><input type="checkbox" value="Parzialmente inerbito"> Parzialmente inerbito</label>
+          <label class="chk-opt"><input type="checkbox" value="Altro" onchange="document.getElementById('f-covsede-altro-wrap').style.display=this.checked?'block':'none'"> Altro</label>
+        </div>
+        <div id="f-covsede-altro-wrap" style="display:none;margin-top:7px">
+          <input type="text" id="f-covsede-altro" placeholder="Specifica copertura sede...">
+        </div>
+      </div>
+      <div class="field"><label>Copertura entro RPA</label>
+        <div class="chk-group" id="chk-covrpa">
+          <label class="chk-opt"><input type="checkbox" value="Asfalto"> Asfalto</label>
+          <label class="chk-opt"><input type="checkbox" value="Pavimentazione"> Pavimentazione</label>
+          <label class="chk-opt"><input type="checkbox" value="Stabilizzato"> Stabilizzato</label>
+          <label class="chk-opt"><input type="checkbox" value="Terreno inerbito"> Terreno inerbito</label>
+          <label class="chk-opt"><input type="checkbox" value="Terreno nudo"> Terreno nudo</label>
+          <label class="chk-opt"><input type="checkbox" value="Parzialmente inerbito"> Parzialmente inerbito</label>
+          <label class="chk-opt"><input type="checkbox" value="Altro" onchange="document.getElementById('f-covrpa-altro-wrap').style.display=this.checked?'block':'none'"> Altro</label>
+        </div>
+        <div id="f-covrpa-altro-wrap" style="display:none;margin-top:7px">
+          <input type="text" id="f-covrpa-altro" placeholder="Specifica copertura RPA...">
+        </div>
+      </div>
+      <div class="frow">
+        <div class="field">
+          <label>Raggio SRZ (m) <span style="font-size:10px;color:var(--green-mid)">↺ da Circ. ABR</span></label>
+          <input type="text" id="f-srz" class="calc" readonly placeholder="Da circ. 1,30 m">
+        </div>
+        <div class="field">
+          <label>Raggio RPA (m) <span style="font-size:10px;color:var(--green-mid)">↺ auto</span></label>
+          <input type="text" id="f-rpa" class="calc-red" readonly placeholder="Da circ. 1,30 m">
+        </div>
+      </div>
+  </div>
+
+  <!-- VALUTAZIONE RISCHIO -->
+  <div class="scard">
+    <div class="shed"><i class="ti ti-shield-half"></i>Valutazione del rischio</div>
+    <div class="sbody">
+      <div class="field"><label>Prop. cedimento ante opera <span style="color:#C84A4A">*</span></label>
+        <select id="f-ced-ante">
+          <option value="">— seleziona —</option>
+          <option>Improbabile</option>
+          <option>Possibile</option>
+          <option>Probabile</option>
+          <option>Imminente</option>
+        </select>
+      </div>
+      <div class="field"><label>Probabilità colpire bersaglio</label>
+        <select id="f-bersaglio">
+          <option value="">— seleziona —</option>
+          <option>Alta</option>
+          <option>Media</option>
+          <option>Bassa</option>
+          <option>Molto bassa</option>
+        </select>
+      </div>
+      <div class="field"><label>Conseguenze</label>
+        <select id="f-cons">
+          <option value="">— seleziona —</option>
+          <option>Gravi</option>
+          <option>Significative</option>
+          <option>Minime</option>
+          <option>Trascurabili</option>
+        </select>
+      </div>
+      <div class="sep"></div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:6px;">SULE</label>
+        <select id="f-sule">
+          <option value="">— seleziona —</option>
+          <option>Lunga &gt; 40 anni</option>
+          <option>Media 15-40 anni</option>
+          <option>Breve 5-15 anni</option>
+          <option>Rimozione entro 5 anni</option>
+          <option>Giovane/piccolo</option>
+        </select>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:6px;">SULE spec.
+          <button type="button" id="btn-sule-help" style="background:none;border:1.5px solid var(--green-mid);border-radius:50%;width:20px;height:20px;font-size:11px;font-weight:700;color:var(--green);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;">?</button>
+        </label>
+        <select id="f-sulespec">
+          <option value="">— seleziona —</option>
+          <option>a</option>
+          <option>b</option>
+          <option>c</option>
+          <option>d</option>
+          <option>e</option>
+          <option>f</option>
+        </select>
+      </div>
+
+  <!-- MODALE SULE -->
+  <div id="sule-modal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(20,40,10,0.55);padding:16px;overflow-y:auto;">
+    <div style="background:white;border-radius:14px;max-width:520px;margin:0 auto;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+      <div style="background:#1E3D0A;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:15px;font-weight:600;color:#F0F7E6;">Guida alla classificazione SULE</span>
+        <button id="btn-sule-close" style="background:rgba(255,255,255,0.12);border:none;border-radius:6px;padding:4px 10px;color:#C8E89A;font-size:18px;cursor:pointer;line-height:1;">✕</button>
+      </div>
+      <div style="padding:16px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:#1A2410;line-height:1.65;display:flex;flex-direction:column;gap:14px;">
+
+        <div style="border-left:3px solid #4A8C1C;padding-left:12px;">
+          <div style="font-weight:600;color:#2D5A10;margin-bottom:5px;">SULE lunga — alberi che possono essere conservati con un livello accettabile di rischio per più di 40 anni</div>
+          <ol style="padding-left:16px;display:flex;flex-direction:column;gap:3px;list-style-type:lower-alpha;">
+            <li>alberi strutturalmente integri localizzati in una posizione idonea per la futura crescita dell'albero;</li>
+            <li>alberi danneggiati o con difetti strutturali che possono essere resi idonei per la conservazione a lungo termine con opportune misure arboricolturali;</li>
+            <li>alberi di particolare importanza per ragioni storiche, culturali o di rarità per i quali può essere garantito un impegno straordinario per la loro conservazione a lungo termine.</li>
+          </ol>
+        </div>
+
+        <div style="border-left:3px solid #7DC03A;padding-left:12px;">
+          <div style="font-weight:600;color:#2D5A10;margin-bottom:5px;">SULE media — alberi che possono essere conservati con un livello accettabile di rischio per 15–40 anni</div>
+          <ol style="padding-left:16px;display:flex;flex-direction:column;gap:3px;list-style-type:lower-alpha;">
+            <li>alberi che possono vivere fra 15 e 40 anni;</li>
+            <li>alberi che potrebbero vivere per più di 40 anni ma che dovrebbero essere rimossi per permettere lo sviluppo equilibrato di soggetti più promettenti;</li>
+            <li>alberi che potrebbero vivere per più di 40 anni ma che sarebbero rimossi (entro 15–40 anni) nel corso delle normali misure di gestione per ragioni di sicurezza o per altre problematiche;</li>
+            <li>alberi danneggiati o con difetti strutturali che possono essere resi idonei per la conservazione a medio termine con opportune misure arboricolturali.</li>
+          </ol>
+        </div>
+
+        <div style="border-left:3px solid #EFA827;padding-left:12px;">
+          <div style="font-weight:600;color:#7A3E00;margin-bottom:5px;">SULE breve — alberi che possono essere conservati con un livello accettabile di rischio per 5–15 anni</div>
+          <ol style="padding-left:16px;display:flex;flex-direction:column;gap:3px;list-style-type:lower-alpha;">
+            <li>alberi che possono vivere solo fra 5 e 15 anni;</li>
+            <li>alberi che potrebbero vivere per più di 15 anni ma che dovrebbero essere rimossi per permettere lo sviluppo equilibrato di soggetti più promettenti;</li>
+            <li>alberi che potrebbero vivere per più di 15 anni ma che sarebbero rimossi (entro 5–15 anni) nel corso delle normali misure di gestione per ragioni di sicurezza o per altre problematiche;</li>
+            <li>alberi danneggiati o con difetti strutturali la cui conservazione richiede misure di notevole impegno, e che possono essere conservati solo nel breve periodo.</li>
+          </ol>
+        </div>
+
+        <div style="border-left:3px solid #E24B4A;padding-left:12px;">
+          <div style="font-weight:600;color:#8C1C1C;margin-bottom:5px;">Rimozione — alberi a cui è associato un elevato livello di rischio e che dovranno essere rimossi entro 5 anni</div>
+          <ol style="padding-left:16px;display:flex;flex-direction:column;gap:3px;list-style-type:lower-alpha;">
+            <li>alberi morti;</li>
+            <li>alberi deperienti o declinanti a causa di malattie o condizioni stazionali inospitali;</li>
+            <li>alberi pericolosi per instabilità o per la recente perdita di alberi adiacenti;</li>
+            <li>alberi pericolosi a causa di gravi difetti strutturali, fra i quali cavità, carie, corteccia inclusa, ferite o per portamento scadente;</li>
+            <li>alberi danneggiati che sarebbe pericoloso conservare;</li>
+            <li>alberi che potrebbero diventare pericolosi dopo la rimozione di alberi adiacenti per i motivi elencati nei punti da (a) a (e).</li>
+          </ol>
+        </div>
+
+        <div style="border-left:3px solid #C8D9B0;padding-left:12px;">
+          <div style="font-weight:600;color:#3D5028;margin-bottom:5px;">Alberi giovani o piccoli</div>
+          <ol style="padding-left:16px;display:flex;flex-direction:column;gap:3px;list-style-type:lower-alpha;">
+            <li>alberi di altezza inferiore a 5 m;</li>
+            <li>alberi di altezza superiore a 5 m ma di età inferiore a 15 anni.</li>
+          </ol>
+        </div>
+
+      </div>
+    </div>
+  </div>
+      <div class="field"><label>Prop. cedimento post opera</label>
+        <select id="f-ced-post">
+          <option value="">— seleziona —</option>
+          <option>Improbabile</option>
+          <option>Possibile</option>
+          <option>Probabile</option>
+          <option>Imminente</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTE -->
+  <div class="scard">
+    <div class="shed"><i class="ti ti-notes"></i>Descrizioni</div>
+    <div class="sbody">
+      <div class="field">
+        <label>Operatore ante opera <span style="color:#C84A4A">*</span></label>
+        <div class="op-wrap" style="position:relative;">
+          <i class="ti ti-user" style="position:absolute;left:13px;top:15px;font-size:18px;color:var(--text-muted);pointer-events:none;z-index:1;"></i>
+          <input type="text" id="f-op-ante" placeholder="Es. M. Rossi" autocomplete="off" style="padding-left:40px;">
+          <div class="op-dropdown" id="op-ante-dd"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Data rilievo ante opera <span style="color:#C84A4A">*</span></label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div style="position:relative;flex:1;">
+            <i class="ti ti-calendar" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--text-muted);pointer-events:none;z-index:1;"></i>
+            <input type="date" id="f-data-ante" style="padding-left:40px;width:100%;">
+          </div>
+          <button type="button" id="btn-oggi-ante" style="flex-shrink:0;background:var(--green-pale);border:1.5px solid var(--green-light);color:var(--green);font-family:var(--font);font-size:14px;font-weight:600;padding:0 16px;border-radius:var(--r-sm);min-height:48px;cursor:pointer;white-space:nowrap;transition:background .15s;">Oggi</button>
+        </div>
+      </div>
+      <div class="field"><label>Descrizione stato di fatto ante opera</label><textarea id="f-note-ante" placeholder="Descrivi la condizione dell'albero e del sito prima dei lavori..." style="min-height:160px;"></textarea></div>
+
+      <!-- FOTO ANTE OPERA -->
+      <div class="field">
+        <label>Foto ante opera</label>
+        <input type="file" id="f-foto-input" accept="image/*" capture="environment" multiple style="display:none">
+        <button type="button" class="btn btn-sec" id="btn-foto" style="margin-top:2px;">
+          <i class="ti ti-camera"></i>Foto ante opera
+        </button>
+        <div id="foto-preview" style="display:none;margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LAVORAZIONI -->
+  <div class="scard">
+    <div class="shed"><i class="ti ti-tools"></i>Lavorazioni</div>
+    <div id="lavorazioni-container" style="padding:0 14px;display:flex;flex-direction:column;gap:12px;margin-top:14px;">
+      <!-- le lavorazioni vengono aggiunte dinamicamente -->
+    </div>
+    <div style="padding:14px;">
+      <button type="button" class="btn btn-sec" id="btn-add-lav">
+        <i class="ti ti-plus"></i>Aggiungi lavorazione
+      </button>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="btn-save"><i class="ti ti-device-floppy"></i>Salva scheda</button>
+  <div id="banner2" class="banner ok"><i class="ti ti-circle-check"></i><span id="bnr-msg2">Salvato</span></div>
+  <button class="btn btn-sec" id="btn-export-foto-correnti" style="display:none"><i class="ti ti-photo-up"></i>Esporta foto scheda corrente (ZIP)</button>
+  <button class="btn btn-sec" id="btn-drive-foto-correnti" style="display:none;background:#fff;border-color:#C8D9B0;"><i class="ti ti-brand-google-drive" style="color:#4A8C1C;"></i>Salva foto scheda su Drive</button>
+  <button class="btn btn-sec" id="btn-sync-sheets" style="background:#fff;border-color:#C8D9B0;"><i class="ti ti-brand-google" style="color:#4A8C1C;"></i>Sincronizza con Google Sheets</button>
+  <div id="banner-sheets" class="banner" style="display:none;"><i></i><span id="bnr-sheets-msg"></span></div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════ RECORDS PANE -->
+<div class="pane" id="pane-recs">
+<div class="fbody">
+  <button class="btn btn-sec" id="btn-refresh"><i class="ti ti-refresh"></i>Aggiorna schede</button>
+  <div id="rec-list"><div class="empty"><i class="ti ti-loader"></i>Caricamento...</div></div>
+  <button class="btn btn-sec" id="btn-sync-sheets2" style="background:#fff;border-color:#C8D9B0;"><i class="ti ti-brand-google" style="color:#4A8C1C;"></i>Sincronizza con Google Sheets</button>
+  <button class="btn btn-sec" id="btn-drive-foto-tutte" style="background:#fff;border-color:#C8D9B0;"><i class="ti ti-brand-google-drive" style="color:#4A8C1C;"></i>Salva tutte le foto su Drive</button>
+  <input type="file" id="f-import-xlsx" accept=".xlsx" style="display:none">
+  <button class="btn btn-sec" id="btn-import-xlsx"><i class="ti ti-file-import"></i>Importa XLSX</button>
+</div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────
+const STORAGE_KEY = 'scavo_alberi_v2';
+// ▼ INCOLLA QUI L'URL DEL TUO GOOGLE APPS SCRIPT (vedi istruzioni)
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxB9yCMvwOaF8O8LgayOBkOdIVK4E6IuQEXRGI8OzTfpV6dvGJB160b79rdhAdMlLGz/exec';
+
+// ── UTILITY ───────────────────────────────────────────────
+const v = id => document.getElementById(id);
+const now = () => { const d = new Date(); return { date: d.toISOString().split('T')[0], time: d.toTimeString().slice(0,5) }; };
+
+// ── LOCAL STORAGE (fallback / offline) ────────────────────
+function loadLocal() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+}
+function saveLocal(recs) {
+  // Prova a salvare con le foto
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(recs));
+    return true;
+  } catch (e) {
+    // Quota superata: salva senza foto base64 e avvisa
+    try {
+      const recsNoFoto = recs.map(r => {
+        const c = Object.assign({}, r);
+        c.foto_base64 = '';
+        c.lav_foto_base64 = '';
+        c._foto_non_salvate = true;
+        return c;
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(recsNoFoto));
+      return 'no_foto';
+    } catch {
+      return false;
+    }
+  }
+}
+
+// ── SYNC STATE UI ─────────────────────────────────────────
+function setSyncState(state, count) {
+  const dot = v('sdot'), lbl = v('slbl');
+  dot.className = 'sdot' + (state === 'err' ? ' err' : state === 'loading' ? ' loading' : '');
+  lbl.textContent = state === 'ok' ? 'Sincronizzato ✓' : state === 'err' ? 'Modalità offline' : 'Connessione...';
+  if (count !== undefined) {
+    v('scount').textContent = count + ' schede';
+  }
+}
+
+// ── CHIP GROUPS ───────────────────────────────────────────
+function initChips(groupId) {
+  const grp = v(groupId); if (!grp) return;
+  const single = grp.dataset.single === '1';
+  grp.querySelectorAll('.chip').forEach(c => {
+    c.addEventListener('click', () => {
+      if (single) grp.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+      c.classList.toggle('on');
+    });
+  });
+}
+
+function getChips(groupId) {
+  return Array.from(document.querySelectorAll('#' + groupId + ' .chip.on')).map(c => c.dataset.v).join('; ');
+}
+
+// ── AUTO-CALC SRZ / RPA ───────────────────────────────────
+function calcZones() {
+  // Raggio SRZ = ((Circ.ABR / 3.14 / 100) * 50)^0.42 * 0.64
+  const circAbr = parseFloat(v('f-circabr').value);
+  if (!isNaN(circAbr) && circAbr > 0) {
+    const srz = (Math.pow((circAbr / 3.14 / 100) * 50, 0.42) * 0.64).toFixed(2);
+    v('f-srz').value = srz + ' m';
+  } else {
+    v('f-srz').value = '';
+  }
+
+  // Raggio RPA = Circ. 1,30 m / 3.14 * 12 / 100
+  const circ130 = parseFloat(v('f-circ130').value);
+  if (!isNaN(circ130) && circ130 > 0) {
+    const rpa = (circ130 / 3.14 * 12 / 100).toFixed(2);
+    v('f-rpa').value = rpa + ' m';
+  } else {
+    v('f-rpa').value = '';
+  }
+}
+
+// ── FORM DATA ─────────────────────────────────────────────
+function getForm() {
+  return {
+    id: 'R' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+    timestamp: new Date().toISOString(),
+    operatore: v('f-op-ante') ? v('f-op-ante').value.trim() : '',
+    data_ante_opera: v('f-data-ante') ? v('f-data-ante').value : '',
+    cantiere: v('f-cant').value.trim(),
+    // Dati albero
+    id_albero: v('f-id').value.trim(),
+    specie: v('f-sp').value.trim(),
+    circ_130_cm: v('f-circ130').value,
+    circ_abr_cm: v('f-circabr').value,
+    altezza_m: v('f-alt').value,
+    chioma_perp_m: v('f-chiomaperf').value,
+    chioma_par_m: v('f-chiomapara').value,
+    eta: v('f-eta').value,
+    fase_sviluppo: v('f-fase').value,
+    stato_vegetativo: v('f-statveg').value,
+    // Sede impianto
+    sede_impianto: v('f-sede').value === 'Altro' ? (v('f-sede-altro').value.trim() || 'Altro') : v('f-sede').value,
+    forma_sede: v('f-forma').value === 'Altro' ? (v('f-forma-altro').value.trim() || 'Altro') : v('f-forma').value,
+    dim1_cm: v('f-dim1').value,
+    dim2_cm: v('f-dim2').value,
+    copertura_sede: (() => { const vals = Array.from(document.querySelectorAll('#chk-covsede input:checked')).map(c => c.value === 'Altro' ? (v('f-covsede-altro').value.trim() || 'Altro') : c.value); return vals.join(', '); })(),
+    copertura_rpa: (() => { const vals = Array.from(document.querySelectorAll('#chk-covrpa input:checked')).map(c => c.value === 'Altro' ? (v('f-covrpa-altro').value.trim() || 'Altro') : c.value); return vals.join(', '); })(),
+    raggio_srz_m: v('f-srz').value,
+    raggio_rpa_m: v('f-rpa').value,
+    // Rischio
+    ced_ante_opera: v('f-ced-ante').value,
+    prob_bersaglio: v('f-bersaglio').value,
+    conseguenze: v('f-cons').value,
+    sule: v('f-sule').value,
+    sule_spec: v('f-sulespec').value,
+    ced_post_opera: v('f-ced-post').value,
+    // Note
+    stato_ante_opera: (function() {
+      var op = v('f-op-ante') ? v('f-op-ante').value.trim() : '';
+      var dt = v('f-data-ante') ? v('f-data-ante').value : '';
+      var t = v('f-note-ante').value.trim();
+      var prefix = [dt, op].filter(Boolean).join(', ');
+      return prefix ? prefix + '\n' + t : t;
+    })(),
+    n_lavorazioni: (() => {
+      let i = 0;
+      while (document.getElementById('lav-note-' + i)) i++;
+      return i;
+    })(),
+    desc_lavorazioni: (() => {
+      // Legge tutte le textarea lav-note-N presenti nel DOM
+      const results = [];
+      let i = 0;
+      while (true) {
+        const ta = document.getElementById('lav-note-' + i);
+        if (!ta) break;
+        var dateEl = document.getElementById('lav-date-' + i);
+        var opEl = document.getElementById('lav-op-' + i);
+        var dateVal = dateEl ? dateEl.value : '';
+        var opVal = opEl ? opEl.value.trim() : '';
+        var noteVal = ta.value.trim();
+        var prefix = [dateVal, opVal].filter(Boolean).join(', ');
+        var entry = '[Lav.' + (i+1) + ']' + (prefix ? '\n' + prefix : '') + (noteVal ? '\n' + noteVal : '');
+        results.push(entry);
+        i++;
+      }
+      return results.join('\n');
+    })(),
+    n_foto: fotoAnteOffset + currentFotos.length,
+    foto_nomi: currentFotos.map(f => f.name).join(', '),
+    foto_base64: currentFotos.map(f => f.data).join('||'),
+    lav_foto_nomi: lavorazioni.filter(l => l).map(l => l.fotos.map(f => f.name).join(', ')).join(' || '),
+    lav_foto_base64: lavorazioni.filter(l => l).map(l => l.fotos.map(f => f.data).join('||')).join('||||')
+  };
+}
+
+// ── FOTO MANAGEMENT ───────────────────────────────────────
+let currentFotos = []; // [{name, data}]
+let fotoAnteOffset = 0;   // foto ante opera già salvate su Drive per questa scheda
+let lavFotoOffset = {};    // {idx: n} foto lavorazione già salvate su Drive
+
+function renameFotos() {
+  const idAlbero = v('f-id').value.trim() || 'ALB';
+  currentFotos = currentFotos.map((f, i) => ({
+    name: idAlbero + '_a_' + String(fotoAnteOffset + i + 1).padStart(2, '0'),
+    data: f.data
+  }));
+}
+
+function renderFotoPreview() {
+  const wrap = v('foto-preview');
+  updateExportFotoCorrentiBtn();
+  if (!currentFotos.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = currentFotos.map((f, i) => `
+    <div class="foto-thumb">
+      <img src="${f.data}" alt="${f.name}">
+      <button class="foto-del" onclick="removeFoto(${i})" title="Elimina foto"><i class="ti ti-x"></i></button>
+      <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:white;font-size:10px;padding:3px 6px;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name || 'foto_' + (i+1)}</div>
+    </div>`).join('') +
+    `<div class="foto-count" style="width:100%">${currentFotos.length} foto allegata${currentFotos.length>1?'e':''}</div>`;
+}
+
+function removeFoto(idx) {
+  currentFotos.splice(idx, 1);
+  renameFotos();
+  renderFotoPreview();
+}
+
+function resetFotos() {
+  currentFotos = [];
+  fotoAnteOffset = 0;
+  lavFotoOffset = {};
+  v('f-foto-input').value = '';
+  renderFotoPreview();
+}
+
+v('btn-foto').addEventListener('click', () => v('f-foto-input').click());
+
+function updateExportFotoCorrentiBtn() {
+  const hasFotos = currentFotos.length > 0 || lavorazioni.some(l => l && l.fotos && l.fotos.length);
+  v('btn-export-foto-correnti').style.display = hasFotos ? 'flex' : 'none';
+  v('btn-drive-foto-correnti').style.display = hasFotos ? 'flex' : 'none';
+}
+
+// ── COMPRESSIONE FOTO ──────────────────────────────────
+function compressImage(file, maxKB, callback) {
+  var maxBytes = maxKB * 1024;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      var w = img.width, h = img.height;
+      // Riduci dimensioni se necessario
+      var maxDim = 1600;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      canvas.width = w; canvas.height = h;
+      ctx.drawImage(img, 0, 0, w, h);
+      // Prova qualità decrescente finché sotto maxKB
+      var quality = 0.85;
+      var dataUrl;
+      do {
+        dataUrl = canvas.toDataURL('image/jpeg', quality);
+        quality -= 0.05;
+      } while (dataUrl.length * 0.75 > maxBytes && quality > 0.1);
+      callback(dataUrl);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+v('f-foto-input').addEventListener('change', () => {
+  const files = Array.from(v('f-foto-input').files);
+  let loaded = 0;
+  files.forEach(file => {
+    compressImage(file, 150, function(dataUrl) {
+      currentFotos.push({ name: file.name, data: dataUrl });
+      loaded++;
+      if (loaded === files.length) { renameFotos(); renderFotoPreview(); }
+    });
+  });
+  v('f-foto-input').value = '';
+});
+
+// aggiorna i nomi se l'ID albero cambia mentre ci sono già foto
+v('f-id').addEventListener('input', () => {
+  checkIdUnique();
+  if (currentFotos.length) { renameFotos(); renderFotoPreview(); }
+  lavorazioni.forEach((l, i) => { if (l.fotos.length) { renameLavFotos(i); renderLavFotoPreview(i); } });
+});
+
+// ── LAVORAZIONI MANAGEMENT ────────────────────────────────
+let lavorazioni = []; // [{note, fotos:[{name,data}]}]
+let lavCount = 0;
+
+function lavNumber(idx) {
+  return String(idx + 1);
+}
+
+function renameLavFotos(idx) {
+  const idAlbero = v('f-id').value.trim() || 'ALB';
+  const num = lavNumber(idx);
+  const offset = lavFotoOffset[idx] || 0;
+  lavorazioni[idx].fotos = lavorazioni[idx].fotos.map((f, i) => ({
+    name: idAlbero + '_' + num + '_' + String(offset + i + 1).padStart(2, '0'),
+    data: f.data
+  }));
+}
+
+function renderLavFotoPreview(idx) {
+  const wrap = document.getElementById('lav-foto-preview-' + idx);
+  if (!wrap) return;
+  updateExportFotoCorrentiBtn();
+  const fotos = lavorazioni[idx].fotos;
+  if (!fotos.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = fotos.map((f, i) => `
+    <div class="foto-thumb">
+      <img src="${f.data}" alt="${f.name}">
+      <button class="foto-del" onclick="removeLavFoto(${idx},${i})" title="Elimina foto"><i class="ti ti-x"></i></button>
+      <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:white;font-size:10px;padding:3px 6px;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
+    </div>`).join('') +
+    `<div class="foto-count" style="width:100%">${fotos.length} foto allegata${fotos.length>1?'e':''}</div>`;
+}
+
+function removeLavFoto(idx, fIdx) {
+  lavorazioni[idx].fotos.splice(fIdx, 1);
+  renameLavFotos(idx);
+  renderLavFotoPreview(idx);
+}
+
+function addLavorazione() {
+  const idx = lavorazioni.length;
+  lavCount++;
+  const num = lavNumber(idx);
+  lavorazioni.push({ note: '', fotos: [] });
+  const container = v('lavorazioni-container');
+  const card = document.createElement('div');
+  card.className = 'lav-card';
+  card.id = 'lav-card-' + idx;
+  card.innerHTML = `
+    <div class="lav-head">
+      <span>Lavorazione ${num}</span>
+      <button type="button" class="lav-del" id="lav-del-${idx}" title="Elimina lavorazione"><i class="ti ti-trash"></i></button>
+    </div>
+    <div class="lav-body">
+      <div class="field">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="field">
+            <label>Operatore lavorazione ${num} <span style="color:#C84A4A">*</span></label>
+            <div style="position:relative;">
+              <i class="ti ti-user" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--text-muted);pointer-events:none;"></i>
+              <input type="text" id="lav-op-${idx}" placeholder="Es. M. Rossi" autocomplete="name" style="width:100%;font-size:16px;padding-left:40px;">
+            </div>
+          </div>
+          <div class="field">
+            <label>Data lavorazione ${num} <span style="color:#C84A4A">*</span></label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <div style="position:relative;flex:1;">
+                <i class="ti ti-calendar" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--text-muted);pointer-events:none;z-index:1;"></i>
+                <input type="date" id="lav-date-${idx}" style="width:100%;font-size:16px;padding:12px 14px 12px 40px;">
+              </div>
+              <button type="button" id="lav-oggi-${idx}" style="flex-shrink:0;background:var(--green-pale);border:1.5px solid var(--green-light);color:var(--green);font-family:var(--font);font-size:14px;font-weight:600;padding:0 16px;border-radius:var(--r-sm);min-height:48px;cursor:pointer;white-space:nowrap;transition:background .15s;">Oggi</button>
+            </div>
+          </div>
+        </div>
+        <label>Descrizione lavorazione ${num}</label>
+        <textarea id="lav-note-${idx}" placeholder="Descrivi la lavorazione effettuata..." rows="8" style="min-height:190px;"></textarea>
+      </div>
+      <div class="field">
+        <label>Foto lavorazione ${num}</label>
+        <input type="file" id="lav-foto-input-${idx}" accept="image/*" capture="environment" multiple style="display:none">
+        <button type="button" class="btn btn-sec" id="lav-foto-btn-${idx}">
+          <i class="ti ti-camera"></i>Foto lavorazione ${num}
+        </button>
+        <div id="lav-foto-preview-${idx}" style="display:none;margin-top:10px;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+    </div>`;
+  container.appendChild(card);
+
+  // attach listeners after appending
+  ['input','change','blur'].forEach(evt => {
+    document.getElementById('lav-note-' + idx).addEventListener(evt, function() {
+      lavorazioni[idx].note = this.value;
+    });
+  });
+  document.getElementById('lav-del-' + idx).addEventListener('click', function() {
+    removeLavorazione(idx);
+  });
+  document.getElementById('lav-foto-btn-' + idx).addEventListener('click', function() {
+    document.getElementById('lav-foto-input-' + idx).click();
+  });
+  document.getElementById('lav-foto-input-' + idx).addEventListener('change', function() {
+    handleLavFoto(idx, this);
+  });
+  // Colore nero per campi data e grigio per vuoti
+  var lavDateEl = document.getElementById('lav-date-' + idx);
+  if (lavDateEl) {
+    updateDateColor(lavDateEl);
+    ['change','input'].forEach(function(evt) { lavDateEl.addEventListener(evt, function() {
+      updateDateColor(this);
+      var myIdx = parseInt(this.id.replace('lav-date-', ''));
+      var myDate = this.value;
+      if (!myDate) return;
+      // Trova la data di riferimento precedente
+      var prevDate = '';
+      if (myIdx === 0) {
+        prevDate = v('f-data-ante') ? v('f-data-ante').value : '';
+      } else {
+        var prevEl = document.getElementById('lav-date-' + (myIdx - 1));
+        prevDate = prevEl ? prevEl.value : '';
+      }
+      if (prevDate && myDate < prevDate) {
+        this.classList.add('field-error');
+        alert('La data deve essere uguale o successiva al rilievo ante opera o alla lavorazione precedente.');
+        this.value = '';
+        updateDateColor(this);
+      } else {
+        this.classList.remove('field-error');
+      }
+    }); }); // end forEach events
+  }
+  // Pulsante Oggi per data lavorazione
+  var lavOggiBtn = document.getElementById('lav-oggi-' + idx);
+  if (lavOggiBtn) {
+    lavOggiBtn.addEventListener('click', function() {
+      var today = new Date().toISOString().split('T')[0];
+      var dateEl = document.getElementById('lav-date-' + idx);
+      dateEl.value = today;
+      updateDateColor(dateEl);
+      dateEl.dispatchEvent(new Event('change'));
+    });
+  }
+  // Precompila operatore lavorazione con valore di f-op-ante
+  var lavOpEl = document.getElementById('lav-op-' + idx);
+  if (lavOpEl && !lavOpEl.value) {
+    var anteOp = v('f-op-ante') ? v('f-op-ante').value.trim() : '';
+    if (anteOp) lavOpEl.value = anteOp;
+  }
+}
+
+function removeLavorazione(idx) {
+  const card = v('lav-card-' + idx);
+  if (card) card.remove();
+  lavorazioni[idx] = null;
+  // rimuovi null trailing
+  while (lavorazioni.length && lavorazioni[lavorazioni.length-1] === null) lavorazioni.pop();
+}
+
+function handleLavFoto(idx, input) {
+  const files = Array.from(input.files);
+  let loaded = 0;
+  files.forEach(file => {
+    compressImage(file, 150, function(dataUrl) {
+      lavorazioni[idx].fotos.push({ name: file.name, data: dataUrl });
+      loaded++;
+      if (loaded === files.length) { renameLavFotos(idx); renderLavFotoPreview(idx); }
+    });
+  });
+  input.value = '';
+}
+
+function resetLavorazioni() {
+  lavorazioni = [];
+  lavCount = 0;
+  v('lavorazioni-container').innerHTML = '';
+}
+
+v('btn-add-lav').addEventListener('click', addLavorazione);
+
+// ── BANNER ────────────────────────────────────────────────
+function markError(id) {
+  var el = v(id); if (!el) return;
+  el.classList.add('field-error');
+  el.style.background = '#FFF0F0';
+}
+function clearErrors() {
+  document.querySelectorAll('.field-error').forEach(function(el) {
+    el.classList.remove('field-error');
+    el.style.background = '';
+  });
+}
+
+// Applica sfondo rosso a tutti i campi obbligatori statici vuoti
+function markRequiredFields() {
+  var required = ['f-cant','f-op-ante','f-id','f-circ130','f-circabr','f-alt','f-data-ante','f-ced-ante'];
+  required.forEach(function(id) {
+    var el = v(id); if (!el) return;
+    var empty = el.value.trim() === '';
+    el.classList.toggle('field-error', empty);
+    el.style.background = empty ? '#FFF0F0' : '';
+  });
+}
+
+// Rimuove field-error non appena il campo viene compilato
+function attachClearOnInput(el) {
+  if (!el) return;
+  var evt = (el.tagName === 'SELECT' || el.type === 'date' || el.type === 'checkbox') ? 'change' : 'input';
+  el.addEventListener(evt, function() {
+    var filled = el.type === 'checkbox' ? el.checked : el.value.trim() !== '';
+    if (filled && el.classList.contains('field-error')) {
+      el.classList.remove('field-error');
+      el.style.background = '';
+    }
+  });
+}
+function showBanner(msg, err) {
+  ['banner', 'banner2'].forEach(function(bid) {
+    var b = v(bid); if (!b) return;
+    b.className = 'banner ' + (err ? 'err' : 'ok');
+    var icon = b.querySelector('i') || b.querySelector('span[aria-hidden]');
+    if (icon) icon.textContent = err ? '⚠' : '✓';
+    b.querySelector('span:not([aria-hidden])').textContent = msg;
+    b.style.display = 'flex';
+    clearTimeout(b._t);
+    b._t = setTimeout(function() { b.style.display = 'none'; }, 7000);
+  });
+}
+
+// ── STATS ─────────────────────────────────────────────────
+function updateStats(recs) {
+  v('cnt-tot').textContent = recs.length;
+  const ops = new Set(recs.map(r => r.operatore).filter(Boolean));
+  v('cnt-op').textContent = ops.size || 0;
+}
+
+// ── RENDER RECORDS ────────────────────────────────────────
+function openRec(id) {
+  const recs = loadLocal();
+  const r = recs.find(x => x.id === id);
+  if (!r) return;
+  fillForm(r);
+  // Passa alla tab Inserimento
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  document.querySelector('.tab[data-tab="form"]').classList.add('on');
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+  v('pane-form').classList.add('on');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showBanner('Scheda ' + (r.id_albero || '') + ' caricata nel form.', false);
+}
+
+function renderRecs(recs) {
+  const el = v('rec-list');
+  if (!recs.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-clipboard-x"></i>Nessuna scheda salvata</div>';
+    return;
+  }
+  const sorted = [...recs].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  el.innerHTML = '<div class="rec-list">' + sorted.map(r => `
+    <div class="rec-item" onclick="openRec('${r.id}')">
+      <div class="rec-head">
+        <div>
+          <span class="rec-id">${r.id_albero || '—'}</span>
+          <span class="rec-sp"> ${r.specie || ''}</span>
+        </div>
+        <button class="del-btn" onclick="event.stopPropagation();deleteRec('${r.id}')" title="Elimina scheda"><i class="ti ti-trash"></i></button>
+      </div>
+      <div class="rec-meta">${r.operatore || '—'} · ${r.cantiere || '—'}</div>
+      <div class="rec-meta">${r.data || ''} · ${r.fase_sviluppo || ''} · ${r.stato_vegetativo || ''}</div>
+      <div class="rec-meta" style="margin-top:6px;color:var(--green);font-size:12px;"><i class="ti ti-edit" style="font-size:11px;"></i> Tocca per aprire</div>
+    </div>`).join('') + '</div>';
+}
+
+// ── DELETE ────────────────────────────────────────────────
+function deleteRec(id) {
+  if (!confirm('Eliminare questa scheda?')) return;
+  const recs = loadLocal().filter(r => r.id !== id);
+  saveLocal(recs);
+  updateStats(recs);
+  renderRecs(recs);
+  setSyncState('ok', recs.length);
+}
+
+// ── EXPORT CSV ────────────────────────────────────────────
+function normalizeRecs(recs) {
+  // Converte il vecchio separatore ' | ' in \n per compatibilità con dati salvati in precedenza
+  return recs.map(function(r) {
+    var c = Object.assign({}, r);
+    if (c.desc_lavorazioni && c.desc_lavorazioni.indexOf(' | ') !== -1 && c.desc_lavorazioni.indexOf('\n') === -1) {
+      c.desc_lavorazioni = c.desc_lavorazioni.replace(/ \| /g, '\n');
+    }
+    return c;
+  });
+}
+
+function exportCSV(recs) {
+  if (!recs || !recs.length) { alert('Nessuna scheda da esportare.'); return; }
+  // Escludi foto_base64 dal CSV (troppo pesante), tieni n_foto
+  const excludeKeys = ['foto_base64', 'foto_nomi', 'lav_foto_base64', 'lav_foto_nomi'];
+  // Unione di tutte le chiavi (le lavorazioni sono dinamiche: lav_1_note, lav_2_note, ...)
+  const allKeys = [];
+  recs.forEach(r => Object.keys(r).forEach(k => { if (!allKeys.includes(k)) allKeys.push(k); }));
+  const keys = allKeys.filter(k => !excludeKeys.includes(k));
+  const csv = [keys.join(','), ...recs.map(r =>
+    keys.map(k => '"' + String(r[k] !== undefined ? r[k] : '').replace(/"/g, '""') + '"').join(',')
+  )].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'scavo_alberi_' + new Date().toISOString().split('T')[0] + '.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+// ── EXPORT XLSX ──────────────────────────────────────────
+function exportXLSX(recs) {
+  if (!recs || !recs.length) { alert('Nessuna scheda da esportare.'); return; }
+  const excludeKeys = ['foto_base64', 'foto_nomi', 'lav_foto_base64', 'lav_foto_nomi'];
+  const allKeys = [];
+  recs.forEach(r => Object.keys(r).forEach(k => { if (!allKeys.includes(k)) allKeys.push(k); }));
+  const keys = allKeys.filter(k => !excludeKeys.includes(k));
+  const wrapKeys = ['desc_lavorazioni', 'stato_ante_opera'];
+
+  function xmlEsc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function colLetter(n) {
+    var s = ''; n++;
+    while (n > 0) { n--; s = String.fromCharCode(65 + n % 26) + s; n = Math.floor(n / 26); }
+    return s;
+  }
+
+  // Shared strings table
+  const sst = []; const sstMap = {};
+  function getSst(val) {
+    const v = String(val);
+    if (sstMap[v] === undefined) { sstMap[v] = sst.length; sst.push(v); }
+    return sstMap[v];
+  }
+  const allRows = [keys, ...recs.map(r => keys.map(k => r[k] !== undefined ? String(r[k]) : ''))];
+  allRows.forEach(row => row.forEach(v => getSst(v)));
+
+  const sstXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="' + sst.length + '" uniqueCount="' + sst.length + '">' +
+    sst.map(s => '<si><t xml:space="preserve">' + xmlEsc(s) + '</t></si>').join('') +
+    '</sst>';
+
+  // Stili: 0=normale, 1=wrapText+top
+  const stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts><font><sz val="11"/><name val="Calibri"/></font></fonts>' +
+    '<fills><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
+    '<borders><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs>' +
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment wrapText="1" vertical="top"/></xf>' +
+    '</cellXfs></styleSheet>';
+
+  // Foglio
+  let sheetRows = '';
+  allRows.forEach((row, ri) => {
+    let cells = '';
+    row.forEach((val, ci) => {
+      const key = keys[ci];
+      const isWrap = wrapKeys.includes(key) && ri > 0;
+      const ref = colLetter(ci) + (ri + 1);
+      const si = getSst(val);
+      cells += '<c r="' + ref + '" t="s"' + (isWrap ? ' s="1"' : '') + '><v>' + si + '</v></c>';
+    });
+    sheetRows += '<row r="' + (ri+1) + '">' + cells + '</row>';
+  });
+
+  const colWidths = keys.map((k, ci) =>
+    '<col min="' + (ci+1) + '" max="' + (ci+1) + '" width="' + (wrapKeys.includes(k) ? 50 : Math.min(40, Math.max(k.length+2, 12))) + '" customWidth="1"/>'
+  ).join('');
+
+  const sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<cols>' + colWidths + '</cols>' +
+    '<sheetData>' + sheetRows + '</sheetData></worksheet>';
+
+  const wbXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheets><sheet name="Schede" sheetId="1" r:id="rId1"/></sheets></workbook>';
+
+  const relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>' +
+    '</Relationships>';
+
+  const wbRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+    '</Relationships>';
+
+  const ctXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>' +
+    '</Types>';
+
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', ctXml);
+  zip.file('_rels/.rels', wbRelsXml);
+  zip.file('xl/workbook.xml', wbXml);
+  zip.file('xl/_rels/workbook.xml.rels', relsXml);
+  zip.file('xl/worksheets/sheet1.xml', sheetXml);
+  zip.file('xl/styles.xml', stylesXml);
+  zip.file('xl/sharedStrings.xml', sstXml);
+
+  zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    .then(function(blob) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'scavo_alberi_' + new Date().toISOString().split('T')[0] + '.xlsx';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    });
+}
+
+// ── EXPORT FOTO (HTML gallery) ────────────────────────────
+function exportFotoFromData(fotosData) {
+  // fotosData: [{id_albero, specie, operatore, cantiere, data, anteFotos:[{name,data}], lavGroups:[[{name,data}]]}]
+  if (!fotosData || !fotosData.length) { alert('Nessuna foto da esportare.'); return; }
+  let html = buildFotoHtml(fotosData);
+  downloadHtml(html, 'foto_scavo_alberi_' + new Date().toISOString().split('T')[0] + '.html');
+}
+
+function exportFoto(recs) {
+  const withFotos = recs.filter(r => (r.foto_base64 && r.foto_base64.length) || (r.lav_foto_base64 && r.lav_foto_base64.length));
+  const conFlag = recs.filter(r => r._foto_non_salvate);
+  if (!withFotos.length) {
+    if (conFlag.length) {
+      alert('Le foto di ' + conFlag.length + ' scheda/e non sono state salvate localmente per spazio insufficiente.\nUsa il pulsante "Esporta foto correnti" subito dopo il salvataggio, prima di compilare la scheda successiva.');
+    } else {
+      alert('Nessuna foto allegata nelle schede salvate.');
+    }
+    return;
+  }
+  let html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
+  <title>Foto – Scavo Alberi</title>
+  <style>body{font-family:sans-serif;background:#f5f9ef;padding:24px;max-width:900px;margin:0 auto}
+  h1{color:#1E3D0A;margin-bottom:24px}
+  .scheda{background:white;border:1px solid #e2edd0;border-radius:12px;padding:16px;margin-bottom:24px}
+  .scheda h2{font-size:15px;color:#2D5A10;margin-bottom:4px}
+  .scheda p{font-size:13px;color:#6B7D5A;margin-bottom:12px}
+  .sez-title{font-size:13px;font-weight:600;color:#3D5028;margin:14px 0 8px;border-left:3px solid #4A8C1C;padding-left:8px}
+  .gallery{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:8px}
+  .foto-item{width:calc(33% - 8px);display:flex;flex-direction:column;gap:4px}
+  .foto-item img{width:100%;border-radius:8px;object-fit:cover;aspect-ratio:4/3;border:1px solid #e2edd0}
+  .foto-name{font-size:11px;color:#3D5028;font-family:monospace;word-break:break-all}
+  .foto-dl{font-size:11px;color:#2D5A10;text-decoration:none;font-weight:500}
+  .foto-dl:hover{text-decoration:underline}
+  @media(max-width:600px){
+  .foto-item{width:calc(50% - 6px)}
+  .lav-card { margin-left: -14px; margin-right: -14px; border-radius: 0; border-left: none; border-right: none; }
+  .lav-body { padding: 12px 14px; }
+  .lav-body .field textarea { min-height: 240px !important; font-size: 16px; line-height: 1.6; }
+}
+  </style></head><body><h1>Documentazione fotografica – Scavo Alberi</h1>`;
+
+  withFotos.forEach(r => {
+    const anteFotos = r.foto_base64 ? r.foto_base64.split('||').filter(Boolean) : [];
+    const anteNomi = r.foto_nomi ? r.foto_nomi.split(', ') : anteFotos.map((_, i) => (r.id_albero||'ALB') + '_a_' + String(i+1).padStart(2,'0'));
+    const lavGroups = r.lav_foto_base64 ? r.lav_foto_base64.split('||||').filter(Boolean) : [];
+    const lavNomiGroups = r.lav_foto_nomi ? r.lav_foto_nomi.split(' || ') : [];
+
+    html += `<div class="scheda">
+      <h2>${r.id_albero || '—'} – ${r.specie || ''}</h2>
+      <p>${r.operatore || ''} · ${r.cantiere || ''} · ${r.data || ''}</p>`;
+
+    if (anteFotos.length) {
+      html += `<div class="sez-title">Foto ante opera (${anteFotos.length})</div>
+        <div class="gallery">${anteFotos.map((f,i) => `
+          <div class="foto-item">
+            <img src="${f}" alt="${anteNomi[i]||''}">
+            <div class="foto-name">${anteNomi[i]||''}</div>
+            <a href="${f}" download="${anteNomi[i]||'foto'}.jpg" class="foto-dl">&#8595; Scarica</a>
+          </div>`).join('')}</div>`;
+    }
+
+    lavGroups.forEach((grp, li) => {
+      const num = String(li + 1);
+      const fotos = grp.split('||').filter(Boolean);
+      const nomi = lavNomiGroups[li] ? lavNomiGroups[li].split(', ') : fotos.map((_,i) => (r.id_albero||'ALB') + '_' + num + '_' + String(i+1).padStart(2,'0'));
+      if (!fotos.length) return;
+      html += `<div class="sez-title">Foto lavorazione ${num} (${fotos.length})</div>
+        <div class="gallery">${fotos.map((f,i) => `
+          <div class="foto-item">
+            <img src="${f}" alt="${nomi[i]||''}">
+            <div class="foto-name">${nomi[i]||''}</div>
+            <a href="${f}" download="${nomi[i]||'foto'}.jpg" class="foto-dl">&#8595; Scarica</a>
+          </div>`).join('')}</div>`;
+    });
+
+    html += `</div>`;
+  });
+  html += `</body></html>`;
+  downloadHtml(html, 'foto_scavo_alberi_' + new Date().toISOString().split('T')[0] + '.html');
+}
+
+function downloadHtml(html, filename) {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+// Esporta le foto ancora in memoria (prima del reset della scheda)
+async function exportCurrentFotos(idAlbero, specie, operatore, cantiere, data) {
+  const hasFotos = currentFotos.length > 0 || lavorazioni.some(l => l && l.fotos && l.fotos.length);
+  if (!hasFotos) { alert('Nessuna foto presente nella scheda corrente.'); return; }
+
+  const folder = (idAlbero || 'ALB').replace(/[\\/:*?"<>|]/g, '_');
+  const zip = new JSZip();
+  const dir = zip.folder(folder);
+
+  // Foto ante opera
+  currentFotos.forEach(f => {
+    const base64 = f.data.split(',')[1];
+    dir.file(f.name + '.jpg', base64, { base64: true });
+  });
+
+  // Foto lavorazioni
+  lavorazioni.forEach((l, li) => {
+    if (!l || !l.fotos || !l.fotos.length) return;
+    l.fotos.forEach(f => {
+      const base64 = f.data.split(',')[1];
+      dir.file(f.name + '.jpg', base64, { base64: true });
+    });
+  });
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = folder + '.zip';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+// ── SEND TO GOOGLE SHEETS ─────────────────────────────────
+async function sendToSheets(data) {
+  if (!SHEETS_URL) return { ok: false, reason: 'no_url' };
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: e.message };
+  }
+}
+
+// ── SAVE ──────────────────────────────────────────────────
+v('btn-save').addEventListener('click', async function() {
+  try {
+    var d = getForm();
+    clearErrors();
+
+    // Alert se ci sono foto (ante opera o lavorazioni)
+    var hasLavFotos = lavorazioni.some(function(l) { return l && l.fotos && l.fotos.length > 0; });
+    var hasAnteFotos = currentFotos.length > 0;
+    var hasAnyFotos = hasAnteFotos || hasLavFotos;
+    if (hasAnyFotos) {
+      if (!confirm('Salvando, le foto verranno inviate a Google Drive e spariranno dalla scheda.\nContinuare?')) return;
+    }
+
+    // Valida tutti i campi obbligatori e marca quelli mancanti
+    var hasErrors = false;
+    if (!d.operatore) { markError('f-op-ante'); hasErrors = true; }
+    if (!d.cantiere) { markError('f-cant'); hasErrors = true; }
+    if (!d.id_albero) { markError('f-id'); hasErrors = true; }
+    if (d.id_albero && idDuplicato) { markError('f-id'); hasErrors = true; }
+    if (!d.circ_130_cm) { markError('f-circ130'); hasErrors = true; }
+    if (!d.circ_abr_cm) { markError('f-circabr'); hasErrors = true; }
+    if (!d.altezza_m) { markError('f-alt'); hasErrors = true; }
+    if (!d.ced_ante_opera) { markError('f-ced-ante'); hasErrors = true; }
+    if (!d.operatore) { markError('f-op-ante'); hasErrors = true; }
+    var dataAnte = v('f-data-ante') ? v('f-data-ante').value : '';
+    if (!dataAnte) { markError('f-data-ante'); hasErrors = true; }
+    // Valida operatore e data per ogni lavorazione
+    var i = 0;
+    var prevDate = dataAnte; // la data della lavorazione precedente parte dalla data ante opera
+    while (document.getElementById('lav-note-' + i)) {
+      if (!document.getElementById('lav-op-' + i).value.trim()) { document.getElementById('lav-op-' + i).classList.add('field-error'); hasErrors = true; }
+      var lavDate = document.getElementById('lav-date-' + i).value;
+      if (!lavDate) {
+        document.getElementById('lav-date-' + i).classList.add('field-error'); hasErrors = true;
+      } else if (prevDate && lavDate < prevDate) {
+        document.getElementById('lav-date-' + i).classList.add('field-error'); hasErrors = true;
+      }
+      if (lavDate) prevDate = lavDate;
+      i++;
+    }
+    if (hasErrors) {
+      if (idDuplicato) {
+        showBanner('ID albero già in uso: scegli un ID diverso o usa quello suggerito.', true);
+      } else {
+        showBanner('Compila tutti i campi obbligatori (evidenziati in rosso).', true);
+      }
+      return;
+    }
+
+    if (d.altezza_m && parseFloat(d.altezza_m) > 40) {
+      markError('f-alt'); showBanner('Il campo Altezza non può superare 40 m.', true); return;
+    }
+    if (d.chioma_perp_m && parseFloat(d.chioma_perp_m) > 30) {
+      markError('f-chiomaperf'); showBanner('Il campo Chioma perp. non può superare 30 m.', true); return;
+    }
+    if (d.chioma_par_m && parseFloat(d.chioma_par_m) > 30) {
+      markError('f-chiomapara'); showBanner('Il campo Chioma par. non può superare 30 m.', true); return;
+    }
+
+    var recs = loadLocal();
+    var editingId = v('f-editing-id').value;
+
+    if (editingId) {
+      // Modalità aggiornamento
+      var found = false;
+      for (var ri = 0; ri < recs.length; ri++) {
+        if (recs[ri].id === editingId) {
+          d.id = editingId;
+          d.timestamp = recs[ri].timestamp;
+          recs[ri] = d;
+          found = true; break;
+        }
+      }
+      if (!found) { showBanner('Scheda non trovata.', true); return; }
+      v('f-editing-id').value = '';
+      v('editing-banner').style.display = 'none';
+    } else {
+      // Modalità inserimento
+      var existing = null;
+      for (var ri = 0; ri < recs.length; ri++) {
+        if (recs[ri].id_albero && recs[ri].id_albero.toLowerCase() === d.id_albero.toLowerCase()) {
+          existing = recs[ri]; break;
+        }
+      }
+      if (existing) {
+        showBanner('ID albero "' + d.id_albero + '" già presente. Usa un ID diverso.', true);
+        return;
+      }
+      recs.push(d);
+    }
+
+    // Upload foto (ante opera + lavorazioni) su Drive prima di salvare localmente
+    if (hasAnyFotos && SHEETS_URL) {
+      var allDriveFotos = [];
+      var idAlbero = d.id_albero || 'ALB';
+
+      // Foto ante opera
+      currentFotos.forEach(function(f) {
+        allDriveFotos.push({ name: f.name + '.jpg', data: f.data.split(',')[1], folder: idAlbero });
+      });
+
+      // Foto lavorazioni
+      lavorazioni.forEach(function(l) {
+        if (!l || !l.fotos) return;
+        l.fotos.forEach(function(f) {
+          allDriveFotos.push({ name: f.name + '.jpg', data: f.data.split(',')[1], folder: idAlbero });
+        });
+      });
+
+      if (allDriveFotos.length) {
+        showBanner('Invio ' + allDriveFotos.length + ' foto su Drive...', false);
+        // Invia a blocchi di 3 (più piccoli per affidabilità)
+        for (var ci = 0; ci < allDriveFotos.length; ci += 3) {
+          var chunk = allDriveFotos.slice(ci, ci + 3);
+          try {
+            await fetch(SHEETS_URL, {
+              method: 'POST', mode: 'no-cors',
+              headers: { 'Content-Type': 'text/plain' },
+              body: JSON.stringify({ action: 'saveFotos', fotos: chunk })
+            });
+          } catch(e) { /* continua anche se un blocco fallisce */ }
+          await new Promise(function(res) { setTimeout(res, 500); });
+        }
+        // Svuota foto dalla memoria dopo l'upload
+        var nFotoTotale = fotoAnteOffset + currentFotos.length;
+        currentFotos = [];
+        v('f-foto-input').value = '';
+        lavorazioni.forEach(function(l) { if (l) l.fotos = []; });
+        renderFotoPreview();
+        // Aggiorna d con foto vuote ma contatore corretto
+        d.foto_base64 = '';
+        d.foto_nomi = '';
+        d.lav_foto_base64 = '';
+        d.lav_foto_nomi = '';
+        d.n_foto = nFotoTotale;
+        // Aggiorna anche il record già inserito in recs
+        var dIdx = recs.findIndex(function(r) { return r.id === d.id; });
+        if (dIdx !== -1) {
+          recs[dIdx].foto_base64 = '';
+          recs[dIdx].foto_nomi = '';
+          recs[dIdx].lav_foto_base64 = '';
+          recs[dIdx].lav_foto_nomi = '';
+          recs[dIdx].n_foto = nFotoTotale;
+        }
+      }
+    }
+
+    var saveResult = saveLocal(recs);
+    updateStats(recs);
+    setSyncState('ok', recs.length);
+
+    // Sincronizzazione automatica con Google Sheets
+    if (SHEETS_URL) {
+      try {
+        var excludeKeys = ['foto_base64', 'foto_nomi', 'lav_foto_base64', 'lav_foto_nomi', '_foto_non_salvate'];
+        var allKeys = [];
+        recs.forEach(function(r) { Object.keys(r).forEach(function(k) { if (!allKeys.includes(k)) allKeys.push(k); }); });
+        var keys = allKeys.filter(function(k) { return !excludeKeys.includes(k); });
+        var rows = [keys].concat(recs.map(function(r) { return keys.map(function(k) { return r[k] !== undefined ? String(r[k]) : ''; }); }));
+        fetch(SHEETS_URL, {
+          method: 'POST', mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'sync', headers: keys, rows: rows })
+        }).catch(function() {});
+      } catch(e) { /* non bloccare il salvataggio se Sheets fallisce */ }
+    }
+
+    if (saveResult === 'no_foto') {
+      showBanner('Scheda salvata senza foto: spazio locale esaurito.', true);
+    } else {
+      showBanner(editingId ? 'Scheda aggiornata ✓' : 'Scheda salvata ✓' + (hasAnyFotos ? ' · Foto su Drive ✓' : ''));
+    }
+
+    if (editingId) {
+      // Modalità modifica: resta sulla scheda aggiornata
+      // Aggiorna l'offset foto al nuovo totale salvato
+      fotoAnteOffset = d.n_foto || 0;
+      lavFotoOffset = {};
+      v('f-editing-id').value = d.id;
+      v('editing-id-label').textContent = d.id_albero || d.id;
+      v('editing-banner').style.display = 'block';
+      v('hdr-albero-id-val').textContent = d.id_albero ? 'Albero ' + d.id_albero : 'Scheda vuota'; v('hdr-albero-id').style.display = 'inline';
+      return;
+    }
+
+    clearErrors();
+    v('f-id-msg').style.display = 'none';
+    idDuplicato = false;
+    v('f-editing-id').value = '';
+    v('editing-banner').style.display = 'none';
+    v('hdr-albero-id-val').textContent = 'Scheda vuota'; v('hdr-albero-id').style.display = 'inline';
+    // Reset campi
+    ['f-id','f-sp','f-circ130','f-circabr','f-alt','f-chiomaperf','f-chiomapara',
+     'f-dim1','f-dim2','f-note-ante','f-op-ante','f-data-ante'].forEach(function(id) { if(v(id)) v(id).value = ''; });
+    v('f-sede').value = '';
+    v('f-sede-altro').value = '';
+    v('f-sede-altro-wrap').style.display = 'none';
+    v('f-covsede-altro').value = '';
+    v('f-covsede-altro-wrap').style.display = 'none';
+    document.querySelectorAll('#chk-covsede input').forEach(function(c) { c.checked = false; });
+    v('f-covrpa-altro').value = '';
+    v('f-covrpa-altro-wrap').style.display = 'none';
+    document.querySelectorAll('#chk-covrpa input').forEach(function(c) { c.checked = false; });
+    v('f-forma-altro').value = '';
+    v('f-forma-altro-wrap').style.display = 'none';
+    v('f-eta').value = '';
+    v('f-fase').value = '';
+    v('f-statveg').value = '';
+    v('f-ced-ante').value = '';
+    v('f-bersaglio').value = '';
+    v('f-cons').value = '';
+    v('f-sule').value = '';
+    v('f-sulespec').value = '';
+    v('f-ced-post').value = '';
+    v('f-srz').value = '';
+    v('f-rpa').value = '';
+    document.querySelectorAll('.chip.on').forEach(function(c) { c.classList.remove('on'); });
+    resetFotos();
+    resetLavorazioni();
+    v('btn-export-foto-correnti').style.display = 'none';
+    markRequiredFields();
+    var t = now(); // data ora su ante opera e lavorazioni
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch(err) {
+    alert('Errore durante il salvataggio: ' + err.message);
+  }
+});
+
+// ── DUPLICATE PREVIOUS RECORD ─────────────────────────────
+function setChips(groupId, valStr) {
+  const grp = v(groupId); if (!grp) return;
+  const vals = valStr ? valStr.split('; ') : [];
+  grp.querySelectorAll('.chip').forEach(c => {
+    c.classList.toggle('on', vals.includes(c.dataset.v));
+  });
+}
+
+function fillForm(r) {
+  // Cantiere (mantieni operatore attuale, aggiorna cantiere e data)
+  v('f-cant').value = r.cantiere || '';
+  if (v('f-op-ante')) v('f-op-ante').value = r.operatore || '';
+  if (v('f-data-ante')) v('f-data-ante').value = r.data_ante_opera || '';
+  // Dati albero
+  v('f-id').value = r.id_albero || '';
+  v('f-sp').value = r.specie || '';
+  v('f-circ130').value = r.circ_130_cm || '';
+  v('f-circabr').value = r.circ_abr_cm || '';
+  v('f-alt').value = r.altezza_m || '';
+  v('f-chiomaperf').value = r.chioma_perp_m || '';
+  v('f-chiomapara').value = r.chioma_par_m || '';
+  v('f-eta').value = r.eta || '';
+  v('f-fase').value = r.fase_sviluppo || '';
+  v('f-statveg').value = r.stato_vegetativo || '';
+  // Sede impianto
+  v('f-sede').value = r.sede_impianto || '';
+  v('f-forma').value = r.forma_sede || '';
+  v('f-forma-altro-wrap').style.display = 'none';
+  v('f-dim1').value = r.dim1_cm || '';
+  v('f-dim2').value = r.dim2_cm || '';
+  v('f-covsede-altro-wrap').style.display = 'none';
+  document.querySelectorAll('#chk-covsede input').forEach(c => { c.checked = false; });
+  if (r.copertura_sede) { r.copertura_sede.split(', ').forEach(val => { const cb = document.querySelector('#chk-covsede input[value="'+val+'"]'); if(cb){cb.checked=true;} else { const alt=document.querySelector('#chk-covsede input[value="Altro"]'); if(alt){alt.checked=true; v('f-covsede-altro').value=val; v('f-covsede-altro-wrap').style.display='block';} } }); }
+  v('f-covrpa-altro-wrap').style.display = 'none';
+  document.querySelectorAll('#chk-covrpa input').forEach(c => { c.checked = false; });
+  if (r.copertura_rpa) { r.copertura_rpa.split(', ').forEach(val => { const cb = document.querySelector('#chk-covrpa input[value="'+val+'"]'); if(cb){cb.checked=true;} else { const alt=document.querySelector('#chk-covrpa input[value="Altro"]'); if(alt){alt.checked=true; v('f-covrpa-altro').value=val; v('f-covrpa-altro-wrap').style.display='block';} } }); }
+  if (r.circ_130_cm || r.circ_abr_cm) calcZones();
+  // Rischio
+  v('f-ced-ante').value = r.ced_ante_opera || '';
+  v('f-bersaglio').value = r.prob_bersaglio || '';
+  v('f-cons').value = r.conseguenze || '';
+  v('f-sule').value = r.sule || '';
+  v('f-sulespec').value = r.sule_spec || '';
+  v('f-ced-post').value = r.ced_post_opera || '';
+  // Note
+  v('f-note-ante').value = r.stato_ante_opera || '';
+  // Estrai data e operatore ante opera da stato_ante_opera (prima riga: "data, operatore")
+  if (r.stato_ante_opera) {
+    var lines = r.stato_ante_opera.split('\n');
+    if (lines.length > 1) {
+      var firstLine = lines[0];
+      var parts = firstLine.split(', ');
+      if (v('f-data-ante') && parts[0]) v('f-data-ante').value = parts[0].trim();
+      if (v('f-op-ante') && parts[1]) v('f-op-ante').value = parts[1].trim();
+      v('f-note-ante').value = lines.slice(1).join('\n');
+    }
+  }
+  // Popola le lavorazioni da desc_lavorazioni
+  resetLavorazioni();
+  // Offset foto: parte dal numero di foto già salvate su Drive per questa scheda
+  fotoAnteOffset = parseInt(r.n_foto || 0, 10);
+  lavFotoOffset = {};
+  if (r.lav_foto_nomi) {
+    r.lav_foto_nomi.split(' || ').forEach(function(group, i) {
+      var count = group ? group.split(', ').filter(Boolean).length : 0;
+      if (count) lavFotoOffset[i] = count;
+    });
+  }
+  if (r.desc_lavorazioni) {
+    // Splitta per [Lav.N]
+    var lavBlocks = r.desc_lavorazioni.split(/\[Lav\.\d+\]/).filter(function(b){ return b.trim(); });
+    lavBlocks.forEach(function(block) {
+      addLavorazione();
+      var idx = lavorazioni.length - 1;
+      var blines = block.trim().split('\n');
+      // Prima riga: data, operatore
+      if (blines.length > 0) {
+        var hparts = blines[0].split(', ');
+        var dateEl = document.getElementById('lav-date-' + idx);
+        var opEl = document.getElementById('lav-op-' + idx);
+        var noteEl = document.getElementById('lav-note-' + idx);
+        if (hparts.length >= 2) {
+          if (dateEl) { dateEl.value = hparts[0].trim(); updateDateColor(dateEl); }
+          if (opEl) opEl.value = hparts[1].trim();
+          if (noteEl) noteEl.value = blines.slice(1).join('\n').trim();
+        } else {
+          // Nessun prefisso data/op, tutto testo
+          if (noteEl) noteEl.value = block.trim();
+        }
+      }
+    });
+  }
+  document.querySelectorAll('.field input[type="date"]').forEach(function(inp) { updateDateColor(inp); });
+
+// Validazione data ante opera: non necessaria (è la prima)
+// Validazione in tempo reale aggiunta in addLavorazione per lav-date-N
+  document.querySelectorAll('.field select').forEach(function(sel) { updateSelectColor(sel); });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+v('btn-duplicate').addEventListener('click', () => {
+  const recs = loadLocal();
+  if (!recs.length) { showBanner('Nessuna scheda precedente da duplicare.', true); return; }
+  const last = recs[recs.length - 1];
+  fillForm(last);
+  // L'ID duplicato dalla scheda precedente non è univoco: segnalalo subito
+  const idInp = v('f-id');
+  const suggested = last.id_albero ? getNextAvailableId(last.id_albero) : '';
+  idInp.value = '';
+  idInp.style.background = '#FDEAEA';
+  idInp.style.borderColor = '#C84A4A';
+  idDuplicato = true;
+  const msg = v('f-id-msg');
+  msg.style.cssText = 'display:block;margin-top:6px;padding:9px 12px;border-radius:8px;font-size:13px;line-height:1.5;background:#FEF3E2;border:1px solid #E8A840;color:#7A3E00;';
+  msg.innerHTML = '<strong>Inserisci un ID univoco.</strong>' +
+    (suggested ? ' Il primo disponibile è <strong style="font-family:var(--mono);font-size:14px;">' + suggested + '</strong>' +
+    ' &nbsp;<button type="button" onclick="useSuggestedId(\'' + suggested.replace(/'/g,"\\'") + '\')" style="background:#C46A00;border:none;color:white;font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;cursor:pointer;margin-left:4px;">Usa questo</button>' : '');
+  showBanner('Dati duplicati. Assegna un ID univoco all\'albero.', true);
+  idInp.focus();
+});
+
+// ── SULE HELP MODAL ───────────────────────────────────────
+v('btn-sule-help').addEventListener('click', () => {
+  v('sule-modal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+});
+v('btn-sule-close').addEventListener('click', () => {
+  v('sule-modal').style.display = 'none';
+  document.body.style.overflow = '';
+});
+v('sule-modal').addEventListener('click', (e) => {
+  if (e.target === v('sule-modal')) {
+    v('sule-modal').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+});
+
+// ── TABS ──────────────────────────────────────────────────
+// ── IMPORT XLSX ──────────────────────────────────────────
+v('btn-import-xlsx').addEventListener('click', () => v('f-import-xlsx').click());
+
+v('f-import-xlsx').addEventListener('change', function() {
+  var file = this.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, { type: 'array' });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows.length) { alert('Nessuna riga trovata nel file.'); return; }
+
+      var imported = rows.map(function(row, i) {
+        return {
+          id: row.id || ('imp_' + Date.now() + '_' + i),
+          timestamp: row.timestamp || new Date().toISOString(),
+          data: row.data || '',
+          ora: row.ora || '',
+          operatore: row.operatore || '',
+          cantiere: row.cantiere || '',
+          id_albero: row.id_albero || '',
+          specie: row.specie || '',
+          circ_130_cm: row.circ_130_cm || '',
+          circ_abr_cm: row.circ_abr_cm || '',
+          altezza_m: row.altezza_m || '',
+          chioma_perp_m: row.chioma_perp_m || '',
+          chioma_par_m: row.chioma_par_m || '',
+          raggio_rpa_m: row.raggio_rpa_m || '',
+          sede_impianto: row.sede_impianto || '',
+          forma_sede: row.forma_sede || '',
+          dim1_cm: row.dim1_cm || '',
+          dim2_cm: row.dim2_cm || '',
+          copertura_sede: row.copertura_sede || '',
+          copertura_rpa: row.copertura_rpa || '',
+          eta: row.eta || '',
+          fase_sviluppo: row.fase_sviluppo || '',
+          stato_vegetativo: row.stato_vegetativo || '',
+          ced_ante_opera: row.ced_ante_opera || '',
+          prob_bersaglio: row.prob_bersaglio || '',
+          conseguenze: row.conseguenze || '',
+          sule: row.sule || '',
+          sule_spec: row.sule_spec || '',
+          ced_post_opera: row.ced_post_opera || '',
+          srz: row.srz || '',
+          stato_ante_opera: row.stato_ante_opera || '',
+          n_lavorazioni: row.n_lavorazioni || 0,
+          desc_lavorazioni: row.desc_lavorazioni || '',
+          n_foto: row.n_foto || 0,
+          foto_base64: '',
+          foto_nomi: '',
+          lav_foto_base64: '',
+          lav_foto_nomi: ''
+        };
+      });
+
+      var existing = loadLocal();
+      var existingIds = existing.map(function(r) { return r.id_albero; });
+      var newRecs = imported.filter(function(r) { return existingIds.indexOf(r.id_albero) === -1; });
+      var merged = existing.concat(newRecs);
+      saveLocal(merged);
+      updateStats(merged);
+      renderRecs(merged);
+      v('f-import-xlsx').value = '';
+      alert('Importate ' + newRecs.length + ' schede nuove (' + (imported.length - newRecs.length) + ' gia presenti ignorate).');
+    } catch(err) {
+      alert('Errore importazione: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// Create schede overlay via JS (no HTML attribute escaping issues)
+(function() {
+  var overlay = document.createElement('div');
+  overlay.id = 'schede-overlay';
+  overlay.style.cssText = 'display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;background:#f0f7e6;overflow-y:auto;';
+  overlay.innerHTML = '<div id="schede-hdr" style="background:#1E3D0A;color:#C8E89A;padding:14px 16px;position:sticky;top:0;z-index:10;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><div><div style="font-size:17px;font-weight:600;">Schede salvate</div><div id="schede-count" style="font-size:13px;opacity:0.8;margin-top:2px;"></div></div><button id="btn-close-schede" style="background:rgba(255,255,255,0.15);border:none;color:#C8E89A;font-size:24px;width:36px;height:36px;border-radius:50%;cursor:pointer;">&#x2715;</button></div><input id="schede-search" type="text" placeholder="Cerca per ID albero..." style="width:100%;padding:8px 12px;border-radius:8px;border:none;font-size:14px;color:#1E3D0A;outline:none;"></div><div id="schede-list" style="padding:8px 12px;display:flex;flex-direction:column;gap:6px;max-width:700px;margin:0 auto;"></div>';
+  document.body.appendChild(overlay);
+  document.getElementById('btn-close-schede').addEventListener('click', closeSchede);
+  document.getElementById('schede-search').addEventListener('input', function() {
+    var q = this.value.trim().toLowerCase();
+    document.querySelectorAll('#schede-list [data-rec-id]').forEach(function(el) {
+      var id = (el.dataset.alberoId || '');
+      el.style.display = (!q || id.includes(q)) ? '' : 'none';
+    });
+  });
+})();
+
+function openSchedeWindow() {
+  var recs = loadLocal();
+  var sorted = recs.slice().sort(function(a,b){ return (a.id_albero||'').localeCompare(b.id_albero||'', undefined, {numeric:true}); });
+  var listEl = document.getElementById('schede-list');
+  document.getElementById('schede-count').textContent = sorted.length + ' scheda/e';
+  var html = '';
+  if (sorted.length === 0) {
+    html = '<div style="text-align:center;padding:60px 20px;color:#888;font-size:15px;">Nessuna scheda salvata</div>';
+  } else {
+    for (var i = 0; i < sorted.length; i++) {
+      var r = sorted[i];
+      html += '<div data-rec-id="' + r.id + '" data-albero-id="' + (r.id_albero||'').toLowerCase() + '" style="background:white;border-radius:8px;padding:8px 12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;">' +
+        '<span style="font-size:15px;font-weight:700;color:#2D5A10;">Albero ' + (r.id_albero || '—') + '</span>' +
+        '<span style="font-size:13px;color:#555;position:absolute;left:50%;transform:translateX(-50%);">' + (r.cantiere || '—') + '</span>' +
+        '<button data-del-id="' + r.id + '" style="background:#fee;border:1px solid #f99;color:#c00;padding:3px 8px;border-radius:6px;cursor:pointer;font-size:12px;margin-left:auto;">Elimina</button>' +
+        '</div>';
+    }
+  }
+  listEl.innerHTML = html;
+  // Wire up clicks
+  listEl.querySelectorAll('[data-rec-id]').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      if (e.target.dataset.delId || e.target.closest('[data-del-id]')) return;
+      closeSchede();
+      var recs2 = loadLocal();
+      var r2 = recs2.find(function(x){ return x.id === el.dataset.recId; });
+      if (r2) {
+        fillForm(r2);
+        v('f-editing-id').value = r2.id;
+        v('editing-id-label').textContent = r2.id_albero || r2.id;
+        v('editing-banner').style.display = 'block';
+        v('hdr-albero-id-val').textContent = r2.id_albero ? 'Albero ' + r2.id_albero : 'Scheda vuota'; v('hdr-albero-id').style.display = 'inline';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  });
+  listEl.querySelectorAll('[data-del-id]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      var delId = btn.dataset.delId;
+      if (!delId) return;
+      if (!confirm('Eliminare questa scheda?')) return;
+      deleteRec(delId);
+      openSchedeWindow();
+    });
+  });
+  var searchEl = document.getElementById('schede-search');
+  if (searchEl) searchEl.value = '';
+  document.getElementById('schede-overlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function cancelEdit() {
+  v('f-editing-id').value = '';
+  v('editing-banner').style.display = 'none';
+  v('hdr-albero-id-val').textContent = 'Scheda vuota'; v('hdr-albero-id').style.display = 'inline';
+  idDuplicato = false; if(v("f-id-msg")) v("f-id-msg").style.display = "none";
+}
+
+function closeSchede() {
+  document.getElementById('schede-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// Colora in grigio i select con valore vuoto
+function updateDateColor(inp) {
+  if (inp.value) {
+    inp.style.color = '#000000';
+    inp.classList.add('has-value');
+  } else {
+    inp.style.color = '#aab8a0';
+    inp.classList.remove('has-value');
+  }
+}
+document.querySelectorAll('.field input[type="date"]').forEach(function(inp) {
+  updateDateColor(inp);
+  inp.addEventListener('change', function() { updateDateColor(this); });
+});
+
+function updateSelectColor(sel) {
+  sel.style.color = sel.value === '' ? '#aab8a0' : '#1a2e0a';
+}
+document.querySelectorAll('.field select').forEach(function(sel) {
+  updateSelectColor(sel);
+  sel.addEventListener('change', function() { updateSelectColor(this); });
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    if (tab.dataset.tab === 'recs') {
+      openSchedeWindow();
+      return;
+    }
+    // Cliccando su Inserimento: esci dalla modifica e svuota il form
+    if (tab.dataset.tab === 'form' && v('f-editing-id').value) {
+      cancelEdit();
+      // Reset completo del form
+      ['f-id','f-sp','f-circ130','f-circabr','f-alt','f-chiomaperf','f-chiomapara',
+       'f-dim1','f-dim2','f-note-ante','f-op-ante','f-data-ante'].forEach(function(id) { if(v(id)) v(id).value = ''; });
+      v('f-cant').value = '';
+      v('f-sede').value = '';
+      v('f-eta').value = '';
+      v('f-fase').value = '';
+      v('f-statveg').value = '';
+      v('f-ced-ante').value = '';
+      v('f-bersaglio').value = '';
+      v('f-cons').value = '';
+      v('f-sule').value = '';
+      v('f-sulespec').value = '';
+      v('f-ced-post').value = '';
+      v('f-srz').value = '';
+      v('f-rpa').value = '';
+      document.querySelectorAll('.chip.on').forEach(function(c) { c.classList.remove('on'); });
+      clearErrors();
+      resetFotos();
+      resetLavorazioni();
+      v('btn-export-foto-correnti').style.display = 'none';
+      v('hdr-albero-id-val').textContent = 'Scheda vuota';
+      markRequiredFields();
+    }
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+    tab.classList.add('on');
+    v('pane-' + tab.dataset.tab).classList.add('on');
+  });
+});
+
+v('btn-refresh').addEventListener('click', () => {
+  const recs = loadLocal();
+  renderRecs(recs);
+  setSyncState('ok', recs.length);
+});
+v('btn-sync-sheets').addEventListener('click', syncToSheets);
+v('btn-sync-sheets2').addEventListener('click', syncToSheets);
+v('btn-drive-foto-correnti').addEventListener('click', driveFotoCorrente);
+v('btn-drive-foto-tutte').addEventListener('click', driveFotoTutte);
+v('btn-export-foto-correnti').addEventListener('click', () => {
+  const d = getForm();
+  exportCurrentFotos(d.id_albero, d.specie, d.operatore, d.cantiere, d.data);
+});
+
+
+
+// ── UPLOAD FOTO SU GOOGLE DRIVE ───────────────────────────────
+
+// Carica le foto di una singola scheda (quella corrente in memoria)
+async function driveFotoCorrente() {
+  if (!SHEETS_URL) { showSheetsBanner('URL Apps Script non configurato.', true); return; }
+  const hasFotos = currentFotos.length > 0 || lavorazioni.some(l => l && l.fotos && l.fotos.length);
+  if (!hasFotos) { showSheetsBanner('Nessuna foto nella scheda corrente.', true); return; }
+
+  const idAlbero = v('f-id').value.trim() || 'ALB';
+  const fotos = [];
+
+  currentFotos.forEach(f => fotos.push({ name: f.name + '.jpg', data: f.data.split(',')[1], folder: idAlbero }));
+  lavorazioni.forEach((l, li) => {
+    if (!l || !l.fotos) return;
+    l.fotos.forEach(f => fotos.push({ name: f.name + '.jpg', data: f.data.split(',')[1], folder: idAlbero }));
+  });
+
+  await _uploadFotos(fotos, idAlbero + ' (' + fotos.length + ' foto)');
+}
+
+// Carica le foto di tutte le schede salvate localmente
+async function driveFotoTutte() {
+  if (!SHEETS_URL) { showSheetsBanner('URL Apps Script non configurato.', true); return; }
+  const recs = loadLocal();
+  const withFotos = recs.filter(r => (r.foto_base64 && r.foto_base64.length) || (r.lav_foto_base64 && r.lav_foto_base64.length));
+  if (!withFotos.length) { showSheetsBanner('Nessuna foto salvata nelle schede.', true); return; }
+
+  // Costruisci array piatto di tutte le foto
+  const fotos = [];
+  withFotos.forEach(r => {
+    const id = r.id_albero || 'ALB';
+    // Ante opera
+    if (r.foto_base64) {
+      const datas = r.foto_base64.split('||').filter(Boolean);
+      const nomi = r.foto_nomi ? r.foto_nomi.split(', ') : datas.map((_, i) => id + '_a_' + String(i+1).padStart(2,'0'));
+      datas.forEach((d, i) => fotos.push({ name: (nomi[i] || id + '_a_' + i) + '.jpg', data: d.split(',')[1] || d, folder: id }));
+    }
+    // Lavorazioni
+    if (r.lav_foto_base64) {
+      const groups = r.lav_foto_base64.split('||||').filter(Boolean);
+      const nomiGroups = r.lav_foto_nomi ? r.lav_foto_nomi.split(' || ') : [];
+      groups.forEach((grp, li) => {
+        const datas = grp.split('||').filter(Boolean);
+        const nomi = nomiGroups[li] ? nomiGroups[li].split(', ') : datas.map((_, i) => id + '_' + (li+1) + '_' + String(i+1).padStart(2,'0'));
+        datas.forEach((d, i) => fotos.push({ name: (nomi[i] || id + '_' + li + '_' + i) + '.jpg', data: d.split(',')[1] || d, folder: id }));
+      });
+    }
+  });
+
+  await _uploadFotos(fotos, withFotos.length + ' schede, ' + fotos.length + ' foto totali');
+}
+
+// Funzione interna: invia le foto allo script a blocchi di 5
+async function _uploadFotos(fotos, label) {
+  const CHUNK = 5;
+  const total = fotos.length;
+  let sent = 0;
+
+  var btnC = v('btn-drive-foto-correnti'), btnT = v('btn-drive-foto-tutte');
+  [btnC, btnT].forEach(b => { if(b){ b.disabled = true; b.style.opacity='0.6'; } });
+  showSheetsBanner('Caricamento su Drive: 0 / ' + total + ' foto...', false, true);
+
+  try {
+    for (var i = 0; i < fotos.length; i += CHUNK) {
+      const chunk = fotos.slice(i, i + CHUNK);
+      await fetch(SHEETS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'saveFotos', fotos: chunk })
+      });
+      sent += chunk.length;
+      showSheetsBanner('Caricamento su Drive: ' + sent + ' / ' + total + ' foto...', false, true);
+      // pausa breve tra i blocchi per non sovraccaricare
+      await new Promise(res => setTimeout(res, 400));
+    }
+    showSheetsBanner('✓ ' + total + ' foto salvate su Drive (' + label + ')', false);
+  } catch(e) {
+    showSheetsBanner('Errore Drive: ' + e.message, true);
+  } finally {
+    [btnC, btnT].forEach(b => { if(b){ b.disabled = false; b.style.opacity=''; } });
+  }
+}
+
+// ── SYNC TO GOOGLE SHEETS ─────────────────────────────────
+async function syncToSheets() {
+  if (!SHEETS_URL) {
+    showSheetsBanner('URL Google Apps Script non configurato.', true);
+    return;
+  }
+  const recs = normalizeRecs(loadLocal());
+  if (!recs.length) { showSheetsBanner('Nessuna scheda da sincronizzare.', true); return; }
+
+  const excludeKeys = ['foto_base64', 'foto_nomi', 'lav_foto_base64', 'lav_foto_nomi', '_foto_non_salvate'];
+  const allKeys = [];
+  recs.forEach(r => Object.keys(r).forEach(k => { if (!allKeys.includes(k)) allKeys.push(k); }));
+  const keys = allKeys.filter(k => !excludeKeys.includes(k));
+
+  const rows = [keys, ...recs.map(r => keys.map(k => r[k] !== undefined ? String(r[k]) : ''))];
+
+  // Mostra stato loading
+  var btn1 = v('btn-sync-sheets'), btn2 = v('btn-sync-sheets2');
+  [btn1, btn2].forEach(b => { if(b){ b.disabled = true; b.style.opacity = '0.6'; } });
+  showSheetsBanner('Invio in corso... (' + recs.length + ' schede)', false, true);
+
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'sync', headers: keys, rows: rows })
+    });
+    showSheetsBanner('Sincronizzate ' + recs.length + ' schede su Google Sheets ✓', false);
+  } catch(e) {
+    showSheetsBanner('Errore di rete: ' + e.message, true);
+  } finally {
+    [btn1, btn2].forEach(b => { if(b){ b.disabled = false; b.style.opacity = ''; } });
+  }
+}
+
+function showSheetsBanner(msg, err, loading) {
+  var b = v('banner-sheets'); if (!b) return;
+  b.className = 'banner ' + (err ? 'err' : 'ok');
+  var icon = b.querySelector('i');
+  if (icon) icon.className = loading ? 'ti ti-loader-2' : (err ? 'ti ti-alert-circle' : 'ti ti-circle-check');
+  b.querySelector('span').textContent = msg;
+  b.style.display = 'flex';
+  if (!loading) { clearTimeout(b._t2); b._t2 = setTimeout(function(){ b.style.display = 'none'; }, 7000); }
+}
+
+// ── EVENT LISTENERS ───────────────────────────────────────
+v('f-circ130').addEventListener('input', calcZones);
+v('f-circabr').addEventListener('input', calcZones);
+
+// Campi obbligatori statici: sfondo torna bianco appena compilati
+['f-cant','f-op-ante','f-circ130','f-circabr','f-alt','f-data-ante'].forEach(function(id) {
+  attachClearOnInput(v(id));
+});
+attachClearOnInput(v('f-ced-ante'));
+
+// Pulsante "Oggi" per data rilievo ante opera
+v('btn-oggi-ante').addEventListener('click', function() {
+  var today = new Date().toISOString().split('T')[0];
+  var inp = v('f-data-ante');
+  inp.value = today;
+  updateDateColor(inp);
+  inp.dispatchEvent(new Event('change'));
+});
+
+// ── ID ALBERO: CONTROLLO UNICITÀ IN TEMPO REALE ───────────
+var idDuplicato = false; // flag globale usato dal btn-save
+
+function getNextAvailableId(usedId) {
+  // Estrae il prefisso e il numero dall'ID inserito (es. "ALB-042" → prefix="ALB-", num=42)
+  // Prova pattern: PREFISSO + numero (con o senza separatore - o _)
+  var recs = loadLocal();
+  var usedIds = recs.map(function(r) { return (r.id_albero || '').trim().toLowerCase(); });
+
+  var m = usedId.match(/^(.*?)(\d+)$/);
+  if (!m) {
+    // Nessun numero nell'ID: aggiunge "_2", "_3", ...
+    var base = usedId.trim();
+    var n = 2;
+    while (usedIds.indexOf((base + '_' + n).toLowerCase()) !== -1) n++;
+    return base + '_' + n;
+  }
+
+  var prefix = m[1];
+  var numStr = m[2];
+  var pad = numStr.length; // mantieni zero-padding originale
+  var num = parseInt(numStr, 10) + 1;
+
+  // Trova il primo numero disponibile a partire dal successivo
+  while (usedIds.indexOf((prefix + String(num).padStart(pad, '0')).toLowerCase()) !== -1) num++;
+  return prefix + String(num).padStart(pad, '0');
+}
+
+function checkIdUnique() {
+  var inp = v('f-id');
+  var msg = v('f-id-msg');
+  var val = inp.value.trim();
+  var editingId = v('f-editing-id').value;
+
+  if (!val) {
+    msg.style.display = 'none';
+    inp.classList.remove('field-error');
+    inp.style.background = '';
+    inp.style.borderColor = '';
+    idDuplicato = false;
+    return;
+  }
+
+  var recs = loadLocal();
+  var duplicate = recs.find(function(r) {
+    if (editingId && r.id === editingId) return false;
+    return r.id_albero && r.id_albero.trim().toLowerCase() === val.toLowerCase();
+  });
+
+  if (duplicate) {
+    idDuplicato = true;
+    inp.classList.add('field-error');
+    inp.style.background = '#FDEAEA';
+    inp.style.borderColor = '#C84A4A';
+    var suggested = getNextAvailableId(val);
+    msg.style.cssText = 'display:block;margin-top:6px;padding:9px 12px;border-radius:8px;font-size:13px;line-height:1.5;background:#FEF3E2;border:1px solid #E8A840;color:#7A3E00;';
+    msg.innerHTML = '<strong>ID già utilizzato.</strong> Il primo ID disponibile è <strong style="font-family:var(--mono);font-size:14px;">' + suggested + '</strong>' +
+      ' &nbsp;<button type="button" onclick="useSuggestedId(\'' + suggested.replace(/'/g,"\\'") + '\')" style="background:#C46A00;border:none;color:white;font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;cursor:pointer;margin-left:4px;">Usa questo</button>';
+  } else {
+    idDuplicato = false;
+    inp.classList.remove('field-error');
+    inp.style.background = 'white';
+    inp.style.borderColor = '';
+    msg.style.display = 'none';
+  }
+}
+
+function useSuggestedId(id) {
+  var inp = v('f-id');
+  inp.value = id;
+  inp.style.background = 'white';
+  inp.style.borderColor = '';
+  checkIdUnique();
+  if (currentFotos.length) { renameFotos(); renderFotoPreview(); }
+  lavorazioni.forEach(function(l, i) { if (l && l.fotos && l.fotos.length) { renameLavFotos(i); renderLavFotoPreview(i); } });
+}
+
+// ── OPERATORE AUTOCOMPLETE ────────────────────────────────
+function getKnownOperatori() {
+  const recs = loadLocal();
+  const seen = new Set();
+  recs.forEach(function(r) { if (r.operatore && r.operatore.trim()) seen.add(r.operatore.trim()); });
+  return Array.from(seen).sort();
+}
+
+// Matching SOLO per iniziali: "MR" / "M.R." / "M R" → nomi con quelle iniziali
+function matchByInitials(query, names) {
+  // Normalizza: rimuove punti e spazi, tutto minuscolo → es. "M. R." → "mr"
+  const q = query.trim().toLowerCase().replace(/[\.\s]/g, '');
+  if (!q.length) return [];
+  return names.filter(function(name) {
+    const initials = name.trim().split(/\s+/).map(function(w) { return w[0].toLowerCase(); }).join('');
+    return initials.startsWith(q);
+  });
+}
+
+function attachOpAutocomplete(inputEl, dropdownEl) {
+  if (!inputEl || !dropdownEl) return;
+  var focusedIdx = -1;
+
+  function renderDropdown(matches) {
+    if (!matches.length) { dropdownEl.classList.remove('show'); return; }
+    focusedIdx = -1;
+    dropdownEl.innerHTML = matches.map(function(name) {
+      return '<div class="op-item" data-name="' + name.replace(/"/g, '&quot;') + '">' + name + '</div>';
+    }).join('');
+    dropdownEl.classList.add('show');
+    dropdownEl.querySelectorAll('.op-item').forEach(function(item) {
+      item.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        inputEl.value = this.dataset.name;
+        dropdownEl.classList.remove('show');
+        inputEl.dispatchEvent(new Event('change'));
+        inputEl.classList.remove('field-error');
+      });
+    });
+  }
+
+  function updateFocus() {
+    dropdownEl.querySelectorAll('.op-item').forEach(function(el, i) {
+      el.classList.toggle('focused', i === focusedIdx);
+    });
+  }
+
+  inputEl.addEventListener('input', function() {
+    var val = this.value.trim();
+    if (!val) { dropdownEl.classList.remove('show'); return; }
+    var known = getKnownOperatori();
+    if (!known.length) return;
+    var matches = matchByInitials(val, known);
+    // Se c'è già una corrispondenza esatta non mostrare
+    if (matches.length === 1 && matches[0].toLowerCase() === val.toLowerCase()) {
+      dropdownEl.classList.remove('show'); return;
+    }
+    renderDropdown(matches);
+  });
+
+  inputEl.addEventListener('keydown', function(e) {
+    var items = dropdownEl.querySelectorAll('.op-item');
+    if (!dropdownEl.classList.contains('show') || !items.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); focusedIdx = Math.min(focusedIdx + 1, items.length - 1); updateFocus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); focusedIdx = Math.max(focusedIdx - 1, 0); updateFocus(); }
+    else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (focusedIdx >= 0 && items[focusedIdx]) {
+        e.preventDefault();
+        inputEl.value = items[focusedIdx].dataset.name;
+        dropdownEl.classList.remove('show');
+        inputEl.dispatchEvent(new Event('change'));
+      }
+    } else if (e.key === 'Escape') { dropdownEl.classList.remove('show'); }
+  });
+
+  inputEl.addEventListener('blur', function() {
+    setTimeout(function() { dropdownEl.classList.remove('show'); }, 160);
+  });
+}
+
+// Attiva autocomplete sul campo operatore ante opera (statico)
+attachOpAutocomplete(v('f-op-ante'), v('op-ante-dd'));
+
+// Patch addLavorazione: attiva autocomplete anche sui campi operatore dinamici
+var _origAddLav = addLavorazione;
+addLavorazione = function() {
+  _origAddLav();
+  var idx = lavorazioni.length - 1;
+  var inp = document.getElementById('lav-op-' + idx);
+  if (!inp) return;
+  // Crea e inserisce il dropdown accanto all'input
+  var dd = document.createElement('div');
+  dd.className = 'op-dropdown';
+  dd.id = 'lav-op-dd-' + idx;
+  var wrap = inp.parentNode;
+  wrap.style.position = 'relative';
+  inp.insertAdjacentElement('afterend', dd);
+  attachOpAutocomplete(inp, dd);
+  // Sfondo torna bianco appena i campi obbligatori della lavorazione vengono compilati
+  attachClearOnInput(document.getElementById('lav-op-' + idx));
+  attachClearOnInput(document.getElementById('lav-date-' + idx));
+};
+
+// ── INIT ──────────────────────────────────────────────────
+// no chip groups remaining
+
+const t = now();
+// data ora su ante opera e lavorazioni
+
+const initRecs = loadLocal();
+updateStats(initRecs);
+renderRecs(initRecs);
+setSyncState('ok', initRecs.length);
+
+// Precompila operatore con l'ultimo usato
+if (initRecs.length && v('f-op-ante') && !v('f-op-ante').value) {
+  const lastRec = initRecs[initRecs.length - 1];
+  if (lastRec.operatore) { if(v('f-op-ante')) v('f-op-ante').value = lastRec.operatore; }
+}
+// Campi obbligatori in rosso all'avvio
+markRequiredFields();
+</script>
+</body>
+</html>
