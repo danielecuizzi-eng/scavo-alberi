@@ -1672,6 +1672,9 @@ v('btn-save').addEventListener('click', async function() {
           var total = (lavFotoOffset[i] || 0) + (l && l.fotos ? l.fotos.length : 0);
           if (total > 0) lavCounts[i] = total;
         });
+        // Aggiorna subito lavFotoOffset con i nuovi totali
+        lavFotoOffset = lavCounts;
+        fotoAnteOffset = nFotoTotale;
         currentFotos = [];
         v('f-foto-input').value = '';
         lavorazioni.forEach(function(l) { if (l) l.fotos = []; });
